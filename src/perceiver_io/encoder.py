@@ -11,6 +11,7 @@ class PerceiverEncoder(nn.Module):
     module that maps an input tensor and a trainable latent tensor to a latent
     tensor and a stacked Transformer blocks with shared weights.
     """
+
     def __init__(
         self,
         num_latents: int,
@@ -73,7 +74,7 @@ class PerceiverEncoder(nn.Module):
             dropout=dropout,
             attention_dropout=cross_attention_dropout
         )
-        self.self_attention_block = nn.ModuleList([
+        self.self_attention_block = nn.Sequential(*[
             SelfAttention(
                 hidden_dim=latent_dim,
                 widening_factor=self_attn_widening_factor,
@@ -104,7 +105,4 @@ class PerceiverEncoder(nn.Module):
             inputs_q=self.latents.repeat(batch_size, 1, 1),
             attention_mask=kv_mask
         )
-        for _ in range(self.num_blocks):
-            for self_attn_layer in self.self_attention_block:
-                latents = self_attn_layer(latents)
-        return latents
+        return self.self_attention_block(latents)
