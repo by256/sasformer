@@ -4,6 +4,7 @@ import torch
 from torch import nn
 
 from perceiver_io.attention import CrossAttention, SelfAttention
+from perceiver_io.positional_encoding import PositionalEncoding
 
 
 class PerceiverEncoder(nn.Module):
@@ -61,10 +62,12 @@ class PerceiverEncoder(nn.Module):
         """
         super().__init__()
         self.num_blocks = num_blocks
-
         self.latents = nn.Parameter(torch.randn(num_latents, latent_dim))
+
+        self.embedding = nn.Linear(input_dim, latent_dim)
+        self.pe = PositionalEncoding(latent_dim)
         self.cross_attn = CrossAttention(
-            kv_dim=input_dim,
+            kv_dim=latent_dim,
             q_dim=latent_dim,
             widening_factor=cross_attn_widening_factor,
             num_heads=num_cross_attn_heads,
@@ -100,6 +103,8 @@ class PerceiverEncoder(nn.Module):
         if kv_mask is not None:
             kv_mask = kv_mask[:, None, None, :]
 
+        x = self.embedding(x)
+        x = self.pe(x)
         latents = self.cross_attn(
             inputs_kv=x,
             inputs_q=self.latents.repeat(batch_size, 1, 1),
