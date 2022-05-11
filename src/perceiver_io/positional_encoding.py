@@ -2,6 +2,32 @@ import math
 from typing import Sequence
 
 import torch
+import torch.nn as nn
+
+
+class PositionalEncoding(nn.Module):
+
+    def __init__(self, d_model: int, dropout: float = 0.0, max_len: int = 5000, scale: float = 1.0):
+        super(PositionalEncoding, self).__init__()
+        self.dropout = nn.Dropout(p=dropout)
+
+        position = torch.arange(max_len).unsqueeze(1)
+        div_term = torch.exp(torch.arange(0, d_model, 2)
+                             * (-math.log(10000.0) / d_model))
+        pe = torch.zeros(1, max_len, d_model)
+        pe[0, :, 0::2] = torch.sin(position * div_term) * scale
+        pe[0, :, 1::2] = torch.cos(position * div_term) * scale
+        self.register_buffer('pe', pe)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            x: Tensor, shape [seq_len, batch_size, embedding_dim]
+        """
+        batch_size = x.size(0)
+        x = torch.cat(
+            [x, self.pe[:, :x.size(1), :].repeat(batch_size, 1, 1)], dim=-1)
+        return self.dropout(x)
 
 
 def fourier_encoding(
