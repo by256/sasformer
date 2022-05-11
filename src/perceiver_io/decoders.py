@@ -22,6 +22,7 @@ class BasePerceiverDecoder(nn.Module, metaclass=ABCMeta):
 
 class ProjectionDecoder(BasePerceiverDecoder):
     """Projection decoder without using a cross-attention layer."""
+
     def __init__(self, latent_dim: int, num_classes: int):
         super().__init__()
         self.projection = nn.Linear(latent_dim, num_classes)
@@ -40,6 +41,7 @@ class ProjectionDecoder(BasePerceiverDecoder):
 
 class PerceiverDecoder(BasePerceiverDecoder):
     """Basic cross-attention decoder."""
+
     def __init__(
         self,
         latent_dim: int,
@@ -85,6 +87,7 @@ class PerceiverDecoder(BasePerceiverDecoder):
 
 class ClassificationDecoder(BasePerceiverDecoder):
     """Classification decoder. Based on PerceiverDecoder."""
+
     def __init__(
         self,
         num_classes: int,
@@ -100,7 +103,7 @@ class ClassificationDecoder(BasePerceiverDecoder):
             query_dim=num_classes,
             widening_factor=widening_factor,
             num_heads=num_heads,
-            head_dim=head_dim,
+            # head_dim=head_dim,
             projection_dim=None,
             use_query_residual=False
         )
@@ -120,3 +123,40 @@ class ClassificationDecoder(BasePerceiverDecoder):
         )
         return logits.squeeze(1)
 
+
+class TaskDecoder(BasePerceiverDecoder):
+
+    def __init__(
+        self,
+        num_outputs: int,
+        latent_dim: int,
+        widening_factor: int = 1,
+        num_heads: int = 1,
+        head_dim: Optional[int] = None
+    ):
+        super().__init__()
+        self.task_ids = nn.Parameter(torch.randn(1, num_outputs))
+        self.decoder = PerceiverDecoder(
+            latent_dim=latent_dim,
+            query_dim=num_outputs,
+            widening_factor=widening_factor,
+            num_heads=num_heads,
+            # head_dim=head_dim,
+            projection_dim=None,
+            use_query_residual=False
+        )
+
+    def forward(
+        self,
+        *,
+        query: torch.Tensor,
+        latents: torch.Tensor,
+        q_mask: Optional[torch.Tensor] = None
+    ):
+        batch_size = latents.size(0)
+        output = self.decoder(
+            query=self.task_ids.repeat(batch_size, 1, 1),
+            latents=latents,
+            q_mask=q_mask
+        )
+        return output.squeeze(1)
