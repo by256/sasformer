@@ -7,6 +7,7 @@ from torch import nn
 
 class MultiHeadAttention(nn.Module):
     """Multi-head attention"""
+
     def __init__(
         self,
         kv_dim: int,
@@ -86,6 +87,7 @@ class MultiHeadAttention(nn.Module):
 
 class FeedForward(nn.Module):
     """Transformer Feed-Forward network."""
+
     def __init__(
         self,
         dim: int,
@@ -113,6 +115,7 @@ class FeedForward(nn.Module):
 
 class SelfAttention(nn.Module):
     """Self-attention module."""
+
     def __init__(
         self,
         *,
@@ -178,6 +181,7 @@ class SelfAttention(nn.Module):
 
 class CrossAttention(nn.Module):
     """Cross-attention module."""
+
     def __init__(
         self,
         *,
