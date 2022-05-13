@@ -132,6 +132,9 @@ class TaskDecoder(BasePerceiverDecoder):
         latent_dim: int,
         widening_factor: int = 1,
         num_heads: int = 1,
+        qk_out_dim: Optional[int] = None,
+        v_out_dim: Optional[int] = None,
+        projection_dim: Optional[int] = None,
         head_dim: Optional[int] = None
     ):
         super().__init__()
@@ -141,8 +144,10 @@ class TaskDecoder(BasePerceiverDecoder):
             query_dim=num_outputs,
             widening_factor=widening_factor,
             num_heads=num_heads,
+            qk_out_dim=qk_out_dim,
+            v_out_dim=v_out_dim,
             # head_dim=head_dim,
-            projection_dim=None,
+            projection_dim=projection_dim,
             use_query_residual=False
         )
 
