@@ -3,6 +3,7 @@ import json
 import torch
 import numpy as np
 import pandas as pd
+from typing import Tuple
 from dataclasses import dataclass
 
 
@@ -45,7 +46,7 @@ def raw_data_to_df(data_dir: str, sub_dir: str = 'large', step: int = 2) -> pd.D
 
         n_model_rows = model_I_q.shape[0]
         for i in range(n_model_rows):
-            I_q = {'I(q={})'.format(q_values[j])                   : model_I_q[i, j] for j in range(n_q)}
+            I_q = {'I(q={})'.format(q_values[j]): model_I_q[i, j] for j in range(n_q)}
             clf_labels = {'model': model_name, 'model_label': model_idx}
             reg_targets = {param_names[j]: param_values[i, j]
                            for j in range(len(param_names))}
@@ -70,7 +71,7 @@ class RegressionScaler:
 
 
 class SASDataset:
-    def __init__(self, df, noise=False, noise_scale=0.01, x_scaler=None, y_scaler=None):
+    def __init__(self, df: pd.DataFrame, noise: bool = False, noise_scale: float = 0.01, x_scaler: IqScaler = None, y_scaler: RegressionScaler = None):
         self.df = df.reset_index(drop=True)
         self.noise = noise
         self.noise_scale = noise_scale
@@ -89,7 +90,6 @@ class SASDataset:
 
     def __getitem__(self, idx):
         I_q = self.I_q[idx, :, None]
-#         I_q = self.I_q[idx, None, :]
         reg_targets = self.reg_targets[idx, :]
 
         if self.noise:
@@ -123,3 +123,22 @@ def log_relevant_regression_targets(df: pd.DataFrame, data_dir: str) -> pd.DataF
         if scale == 'log':
             df[col_name] = np.log(df[col_name])
     return df
+
+
+def get_scalers(df_train: pd.DataFrame) -> Tuple[IqScaler, RegressionScaler]:
+    data_columns = [x for x in df_train.columns if x.startswith('I(q')]
+    reg_target_columns = [x for x in df_train.columns if x.startswith('reg')]
+
+    I_q_train_transformed = np.log10(
+        df_train[data_columns].values**2)  # just for scaler
+    I_q_mean = I_q_train_transformed.mean()  # global
+    I_q_std = I_q_train_transformed.std()  # global
+    Iq_scaler = IqScaler(mean=I_q_mean, std=I_q_std)
+    del I_q_train_transformed
+
+    reg_mean = np.nanmean(
+        df_train[reg_target_columns].values, axis=0)  # feature-wise
+    reg_std = np.nanstd(
+        df_train[reg_target_columns].values, axis=0)  # feature-wise
+    reg_target_scaler = RegressionScaler(mean=reg_mean, std=reg_std)
+    return Iq_scaler, reg_target_scaler
