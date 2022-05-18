@@ -6,6 +6,7 @@ from typing import Union
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
+from pytorch_lightning.strategies import DDPStrategy
 
 from model import LightningModel
 from data import log_relevant_regression_targets, get_scalers, SASDataset
@@ -55,6 +56,8 @@ if __name__ == '__main__':
                         type=Union[float, int], metavar='overfit_batches')
     parser.add_argument('--deterministic', default=True,
                         type=bool, metavar='deterministic')
+    parser.add_argument('--strategy', default=None, type=str,
+                        help='Set to `ddp` for cluster training', metavar='strategy')
     parser.add_argument('--seed', default=None, type=int,
                         help='Random seed.', metavar='seed')
     namespace = parser.parse_args()
@@ -95,7 +98,7 @@ if __name__ == '__main__':
     sas_model_decoder = TaskDecoder(latent_dim=namespace.latent_dim,
                                     num_heads=namespace.model_decoder_num_heads,
                                     qk_out_dim=namespace.latent_dim//4,
-                                    num_outputs=39)
+                                    num_outputs=num_clf)
     sas_param_decoder = TaskDecoder(latent_dim=namespace.latent_dim,
                                     num_heads=namespace.param_decoder_num_heads,
                                     qk_out_dim=namespace.latent_dim,
@@ -104,12 +107,19 @@ if __name__ == '__main__':
     perceiver = SASPerceiverIO(encoder, sas_model_decoder, sas_param_decoder)
     model = LightningModel(perceiver, num_clf, lr=namespace.lr,
                            clf_weight=namespace.clf_weight, reg_weight=namespace.reg_weight)
+
+    strategy = DDPStrategy(
+        find_unused_parameters=False) if namespace.strategy == 'ddp' else None
     trainer = pl.Trainer(accelerator=namespace.accelerator,
                          gpus=namespace.gpus,
                          max_epochs=namespace.max_epochs,
                          logger=logger,
                          precision=16,
-                         accumulate_grad_batches=namespace.accumulate_grad_batches)
+                         accumulate_grad_batches=namespace.accumulate_grad_batches,
+                         deterministic=namespace.deterministic,
+                         strategy=strategy,
+                         flush_logs_every_n_steps=1e12  # this prevents training from freezing at 100 steps
+                         )
     trainer.fit(model,
                 train_dataloaders=train_loader,
                 val_dataloaders=val_loader if namespace.val_size > 0 else None)
