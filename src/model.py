@@ -38,7 +38,7 @@ class LightningModel(pl.LightningModule):
         self.y_scaler = y_scaler
         # metrics
         self.accuracy = Accuracy(num_classes=num_classes)
-        self.save_hyperparameters()
+        self.save_hyperparameters(ignore=['model'])
 
     def forward(self, x):
         return self.model(x)
