@@ -62,13 +62,17 @@ if __name__ == '__main__':
                         help='Random seed.', metavar='seed')
     namespace = parser.parse_args()
 
+    # define paths
+    root_dir = os.path.dirname(os.path.abspath(__file__))
+    data_dir = os.path.join(root_dir, namespace.data_dir)
+
     # load data (and split if necessary)
     train = pd.read_parquet(os.path.join(
-        namespace.data_dir, namespace.sub_dir, 'train.parquet'))
+        data_dir, namespace.sub_dir, 'train.parquet'))
     num_clf = len(np.unique(train['model']))
     num_reg = len([x for x in train.columns if x.startswith('reg')])
 
-    train = log_relevant_regression_targets(train, namespace.data_dir)
+    train = log_relevant_regression_targets(train, data_dir)
     if namespace.val_size > 0.0:
         train, val = train_test_split(train, test_size=namespace.val_size,
                                       stratify=train['model_label'], random_state=namespace.seed)
@@ -87,8 +91,8 @@ if __name__ == '__main__':
         val_loader = DataLoader(val_dataset, batch_size=namespace.batch_size)
 
     # initialize model and trainer
-    logger = pl.loggers.TensorBoardLogger(
-        namespace.log_dir, default_hp_metric=False)
+    logger = pl.loggers.TensorBoardLogger(os.path.join(
+        root_dir, namespace.log_dir), default_hp_metric=False)
 
     encoder = PerceiverEncoder(num_latents=namespace.latent_dim,
                                latent_dim=namespace.latent_dim,
