@@ -58,6 +58,8 @@ if __name__ == '__main__':
                         type=bool, metavar='deterministic')
     parser.add_argument('--strategy', default=None, type=str,
                         help='Set to `ddp` for cluster training', metavar='strategy')
+    parser.add_argument('--num_nodes', default=1, type=int, 
+                        help='N nodes for distributed training.', metavar='num_nodes')
     parser.add_argument('--seed', default=None, type=int,
                         help='Random seed.', metavar='seed')
     namespace = parser.parse_args()
@@ -122,6 +124,7 @@ if __name__ == '__main__':
                          accumulate_grad_batches=namespace.accumulate_grad_batches,
                          deterministic=namespace.deterministic,
                          strategy=strategy,
+                         num_nodes=namespace.num_nodes, 
                          flush_logs_every_n_steps=1e12  # this prevents training from freezing at 100 steps
                          )
     trainer.fit(model,
