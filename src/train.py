@@ -116,6 +116,7 @@ if __name__ == '__main__':
 
     # strategy = DDPStrategy(
     #     find_unused_parameters=False) if namespace.strategy == 'ddp' else strategy
+    strategy = namespace.strategy
     trainer = pl.Trainer(accelerator=namespace.accelerator,
                          gpus=namespace.gpus,
                          max_epochs=namespace.max_epochs,
