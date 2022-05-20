@@ -70,14 +70,14 @@ if __name__ == '__main__':
     namespace = parser.parse_args()
 
     if 'ddp' in namespace.strategy:
-        local_rank = os.environ['OMPI_COMM_WORLD_LOCAL_RANK']
+        # local_rank = os.environ['OMPI_COMM_WORLD_LOCAL_RANK']
         size = MPI.COMM_WORLD.Get_size()
         rank = MPI.COMM_WORLD.Get_rank()
 
         # PyTorch will look for these:
         os.environ["RANK"] = str(rank)
         os.environ["WORLD_SIZE"] = str(size)
-        os.environ['CUDA_VISIBLE_DEVICES'] = str(local_rank)
+        # os.environ['CUDA_VISIBLE_DEVICES'] = str(local_rank)
 
         if rank == 0:
             master_addr = socket.gethostname()
