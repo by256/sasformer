@@ -37,7 +37,7 @@ from perceiver_io import PerceiverEncoder, PerceiverDecoder, SASPerceiverIO, Tas
 
 if __name__ == '__main__':
     os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
-    # os.environ['NCCL_IB_DISABLE'] = '1'
+    os.environ['NCCL_IB_DISABLE'] = '1'
     os.environ['NCCL_P2P_DISABLE'] = '1'
     # os.environ['NCCL_DEBUG'] = 'INFO'
     # os.environ['NCCL_DEBUG_SUBSYS'] = 'ALL'
