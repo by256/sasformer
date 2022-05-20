@@ -72,7 +72,7 @@ if __name__ == '__main__':
 
     if 'ddp' in namespace.strategy:
 
-        world_comm = mpi4py.MPI.COMM_WORLD
+        world_comm = MPI.COMM_WORLD
         ranks = world_comm.size
         myrank = world_comm.rank
 
