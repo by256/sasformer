@@ -15,6 +15,25 @@ from data import log_relevant_regression_targets, get_scalers, SASDataset
 from perceiver_io import PerceiverEncoder, PerceiverDecoder, SASPerceiverIO, TaskDecoder
 
 
+local_rank = os.environ['OMPI_COMM_WORLD_LOCAL_RANK']
+size = MPI.COMM_WORLD.Get_size()
+rank = MPI.COMM_WORLD.Get_rank()
+
+# PyTorch will look for these:
+os.environ["RANK"] = str(rank)
+os.environ["WORLD_SIZE"] = str(size)
+os.environ['CUDA_VISIBLE_DEVICES'] = str(local_rank)
+
+# if rank == 0:
+#     master_addr = socket.gethostname()
+# else:
+#     master_addr = None
+
+# master_addr = MPI.COMM_WORLD.bcast(master_addr, root=0)
+# os.environ["MASTER_ADDR"] = master_addr
+# os.environ["MASTER_PORT"] = str(2345)
+
+
 if __name__ == '__main__':
     os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
     # os.environ['NCCL_DEBUG'] = 'INFO'
@@ -69,30 +88,6 @@ if __name__ == '__main__':
     parser.add_argument('--seed', default=None, type=int,
                         help='Random seed.', metavar='seed')
     namespace = parser.parse_args()
-
-    if 'ddp' in namespace.strategy:
-
-        world_comm = MPI.COMM_WORLD
-        ranks = world_comm.size
-        myrank = world_comm.rank
-
-        # # local_rank = os.environ['OMPI_COMM_WORLD_LOCAL_RANK']
-        # size = MPI.COMM_WORLD.Get_size()
-        # rank = MPI.COMM_WORLD.Get_rank()
-
-        # # PyTorch will look for these:
-        # os.environ["RANK"] = str(rank)
-        # os.environ["WORLD_SIZE"] = str(size)
-        # # os.environ['CUDA_VISIBLE_DEVICES'] = str(local_rank)
-
-        # # if rank == 0:
-        # #     master_addr = socket.gethostname()
-        # # else:
-        # #     master_addr = None
-
-        # # master_addr = MPI.COMM_WORLD.bcast(master_addr, root=0)
-        # # os.environ["MASTER_ADDR"] = master_addr
-        # # os.environ["MASTER_PORT"] = str(2345)
 
     # define paths
     root_dir = os.path.dirname(os.path.abspath(__file__))
