@@ -15,23 +15,23 @@ from data import log_relevant_regression_targets, get_scalers, SASDataset
 from perceiver_io import PerceiverEncoder, PerceiverDecoder, SASPerceiverIO, TaskDecoder
 
 
-# local_rank = os.environ['OMPI_COMM_WORLD_LOCAL_RANK']
-comm = MPI.COMM_WORLD
-size = comm.Get_size()
-rank = comm.Get_rank()
+# # local_rank = os.environ['OMPI_COMM_WORLD_LOCAL_RANK']
+# comm = MPI.COMM_WORLD
+# size = comm.Get_size()
+# rank = comm.Get_rank()
 
-# PyTorch will look for these:
-os.environ["RANK"] = str(rank)
-os.environ["WORLD_SIZE"] = str(size)
-# os.environ['CUDA_VISIBLE_DEVICES'] = str(local_rank)
+# # PyTorch will look for these:
+# os.environ["RANK"] = str(rank)
+# os.environ["WORLD_SIZE"] = str(size)
+# # os.environ['CUDA_VISIBLE_DEVICES'] = str(local_rank)
 
-# if rank == 0:
-#     master_addr = socket.gethostname()
-# else:
-#     master_addr = None
+# # if rank == 0:
+# #     master_addr = socket.gethostname()
+# # else:
+# #     master_addr = None
 
-# master_addr = MPI.COMM_WORLD.bcast(master_addr, root=0)
-# os.environ["MASTER_ADDR"] = master_addr
+# # master_addr = MPI.COMM_WORLD.bcast(master_addr, root=0)
+# # os.environ["MASTER_ADDR"] = master_addr
 # os.environ["MASTER_PORT"] = str(2345)
 
 
