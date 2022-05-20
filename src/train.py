@@ -4,7 +4,7 @@ import argparse
 import numpy as np
 import pandas as pd
 from typing import Union
-from mpi4py import MPI
+# from mpi4py import MPI
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
