@@ -80,14 +80,14 @@ if __name__ == '__main__':
         os.environ["WORLD_SIZE"] = str(size)
         # os.environ['CUDA_VISIBLE_DEVICES'] = str(local_rank)
 
-        if rank == 0:
-            master_addr = socket.gethostname()
-        else:
-            master_addr = None
+        # if rank == 0:
+        #     master_addr = socket.gethostname()
+        # else:
+        #     master_addr = None
 
-        master_addr = MPI.COMM_WORLD.bcast(master_addr, root=0)
-        os.environ["MASTER_ADDR"] = master_addr
-        os.environ["MASTER_PORT"] = str(2345)
+        # master_addr = MPI.COMM_WORLD.bcast(master_addr, root=0)
+        # os.environ["MASTER_ADDR"] = master_addr
+        # os.environ["MASTER_PORT"] = str(2345)
 
     # define paths
     root_dir = os.path.dirname(os.path.abspath(__file__))
