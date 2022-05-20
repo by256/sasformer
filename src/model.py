@@ -75,7 +75,7 @@ class LightningModel(pl.LightningModule):
                 'lr_scheduler': {'scheduler': lr_scheduler}}
 
     def log_losses_and_metrics(self, clf_loss, reg_loss, accuracy, mode='train'):
-        if self.trainer.strategy.strategy_name == 'ddp':
+        if 'ddp' in self.trainer.strategy.strategy_name:
             self.log(f'{mode}_clf_loss', self.clf_weight*clf_loss,
                      on_step=False, on_epoch=True, sync_dist=True)
             self.log(f'{mode}_reg_loss', self.reg_weight*reg_loss,
