@@ -4,7 +4,6 @@ import argparse
 import numpy as np
 import pandas as pd
 from typing import Union
-# from mpi4py import MPI
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
@@ -15,32 +14,10 @@ from data import log_relevant_regression_targets, get_scalers, SASDataset
 from perceiver_io import PerceiverEncoder, PerceiverDecoder, SASPerceiverIO, TaskDecoder
 
 
-# # local_rank = os.environ['OMPI_COMM_WORLD_LOCAL_RANK']
-# comm = MPI.COMM_WORLD
-# size = comm.Get_size()
-# rank = comm.Get_rank()
-
-# # PyTorch will look for these:
-# os.environ["RANK"] = str(rank)
-# os.environ["WORLD_SIZE"] = str(size)
-# # os.environ['CUDA_VISIBLE_DEVICES'] = str(local_rank)
-
-# # if rank == 0:
-# #     master_addr = socket.gethostname()
-# # else:
-# #     master_addr = None
-
-# # master_addr = MPI.COMM_WORLD.bcast(master_addr, root=0)
-# # os.environ["MASTER_ADDR"] = master_addr
-# os.environ["MASTER_PORT"] = str(2345)
-
-
 if __name__ == '__main__':
     os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
-    os.environ['NCCL_IB_DISABLE'] = '1'
+    # from https://github.com/PyTorchLightning/pytorch-lightning/issues/4420
     os.environ['NCCL_P2P_DISABLE'] = '1'
-    # os.environ['NCCL_DEBUG'] = 'INFO'
-    # os.environ['NCCL_DEBUG_SUBSYS'] = 'ALL'
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_dir', default='../data/', type=str,
@@ -121,9 +98,8 @@ if __name__ == '__main__':
         val_loader = DataLoader(val_dataset, batch_size=namespace.batch_size)
 
     # initialize model and trainer
-    # logger = pl.loggers.TensorBoardLogger(os.path.join(
-    #     root_dir, namespace.log_dir), default_hp_metric=False)
-    logger = None
+    logger = pl.loggers.TensorBoardLogger(os.path.join(
+        root_dir, namespace.log_dir), default_hp_metric=False)
 
     encoder = PerceiverEncoder(num_latents=namespace.latent_dim,
                                latent_dim=namespace.latent_dim,
