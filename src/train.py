@@ -91,11 +91,12 @@ if __name__ == '__main__':
     train_dataset = SASDataset(
         train, noise=False, x_scaler=Iq_scaler, y_scaler=reg_target_scaler)
     train_loader = DataLoader(
-        train_dataset, batch_size=namespace.batch_size, shuffle=True)
+        train_dataset, batch_size=namespace.batch_size, shuffle=True, num_workers=0)
     if namespace.val_size > 0.0:
         val_dataset = SASDataset(
             val, noise=False, x_scaler=Iq_scaler, y_scaler=reg_target_scaler)
-        val_loader = DataLoader(val_dataset, batch_size=namespace.batch_size)
+        val_loader = DataLoader(
+            val_dataset, batch_size=namespace.batch_size, num_workers=0)
 
     # initialize model and trainer
     logger = pl.loggers.TensorBoardLogger(os.path.join(
