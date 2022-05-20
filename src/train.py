@@ -94,8 +94,9 @@ if __name__ == '__main__':
         val_loader = DataLoader(val_dataset, batch_size=namespace.batch_size)
 
     # initialize model and trainer
-    logger = pl.loggers.TensorBoardLogger(os.path.join(
-        root_dir, namespace.log_dir), default_hp_metric=False)
+    # logger = pl.loggers.TensorBoardLogger(os.path.join(
+    #     root_dir, namespace.log_dir), default_hp_metric=False)
+    logger = None
 
     encoder = PerceiverEncoder(num_latents=namespace.latent_dim,
                                latent_dim=namespace.latent_dim,
