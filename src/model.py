@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import pytorch_lightning as pl
-from torchmetrics import Accuracy
+from torchmetrics.functional import accuracy
 from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
 
 from data import IqScaler, RegressionScaler
@@ -37,7 +37,7 @@ class LightningModel(pl.LightningModule):
         self.x_scaler = x_scaler
         self.y_scaler = y_scaler
         # metrics
-        self.accuracy = Accuracy(num_classes=num_classes)
+        self.num_classes = num_classes
         self.save_hyperparameters(ignore=['model'])
 
     def forward(self, x):
@@ -49,9 +49,10 @@ class LightningModel(pl.LightningModule):
         clf_loss = F.cross_entropy(y_clf_pred, y_clf_true)
         reg_loss = multitask_l1(y_reg_pred, y_reg_true)
         loss = self.clf_weight*clf_loss + self.reg_weight*reg_loss
-        accuracy = self.accuracy(torch.argmax(y_clf_pred, dim=1), y_clf_true)
+        acc = accuracy(torch.argmax(y_clf_pred, dim=1),
+                       y_clf_true, num_classes=self.num_classes)
 
-        self.log_losses_and_metrics(clf_loss, reg_loss, accuracy, mode='train')
+        self.log_losses_and_metrics(clf_loss, reg_loss, acc, mode='train')
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -60,9 +61,10 @@ class LightningModel(pl.LightningModule):
         clf_loss = F.cross_entropy(y_clf_pred, y_clf_true)
         reg_loss = multitask_l1(y_reg_pred, y_reg_true)
         loss = self.clf_weight*clf_loss + self.reg_weight*reg_loss
-        accuracy = self.accuracy(torch.argmax(y_clf_pred, dim=1), y_clf_true)
+        acc = accuracy(torch.argmax(y_clf_pred, dim=1),
+                       y_clf_true, num_classes=self.num_classes)
 
-        self.log_losses_and_metrics(clf_loss, reg_loss, accuracy, mode='val')
+        self.log_losses_and_metrics(clf_loss, reg_loss, acc, mode='val')
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(),
@@ -74,13 +76,13 @@ class LightningModel(pl.LightningModule):
         return {'optimizer': optimizer,
                 'lr_scheduler': {'scheduler': lr_scheduler}}
 
-    def log_losses_and_metrics(self, clf_loss, reg_loss, accuracy, mode='train'):
+    def log_losses_and_metrics(self, clf_loss, reg_loss, acc, mode='train'):
         if 'ddp' in self.trainer.strategy.strategy_name:
             self.log(f'{mode}_clf_loss', self.clf_weight*clf_loss,
                      on_step=False, on_epoch=True, sync_dist=True)
             self.log(f'{mode}_reg_loss', self.reg_weight*reg_loss,
                      on_step=False, on_epoch=True, sync_dist=True)
-            self.log(f'{mode}_accuracy', accuracy, on_step=False,
+            self.log(f'{mode}_accuracy', acc, on_step=False,
                      on_epoch=True, sync_dist=True)
             self.log(f'{mode}_mae', reg_loss, on_step=False,
                      on_epoch=True, sync_dist=True)
@@ -90,6 +92,6 @@ class LightningModel(pl.LightningModule):
             self.logger.experiment.add_scalars(
                 'reg_loss', {mode: self.reg_weight*reg_loss}, global_step=self.current_epoch)
             self.logger.experiment.add_scalars(
-                'accuracy', {mode: accuracy}, global_step=self.current_epoch)
+                'accuracy', {mode: acc}, global_step=self.current_epoch)
             self.logger.experiment.add_scalars(
                 'mae', {mode: reg_loss}, global_step=self.current_epoch)
