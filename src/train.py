@@ -114,8 +114,8 @@ if __name__ == '__main__':
     model = LightningModel(perceiver, num_clf, lr=namespace.lr,
                            clf_weight=namespace.clf_weight, reg_weight=namespace.reg_weight)
 
-    strategy = DDPStrategy(
-        find_unused_parameters=False) if namespace.strategy == 'ddp' else strategy
+    # strategy = DDPStrategy(
+    #     find_unused_parameters=False) if namespace.strategy == 'ddp' else strategy
     trainer = pl.Trainer(accelerator=namespace.accelerator,
                          gpus=namespace.gpus,
                          max_epochs=namespace.max_epochs,
