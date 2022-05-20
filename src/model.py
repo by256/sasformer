@@ -49,10 +49,10 @@ class LightningModel(pl.LightningModule):
         clf_loss = F.cross_entropy(y_clf_pred, y_clf_true)
         reg_loss = multitask_l1(y_reg_pred, y_reg_true)
         loss = self.clf_weight*clf_loss + self.reg_weight*reg_loss
-        acc = accuracy(torch.argmax(y_clf_pred, dim=1),
-                       y_clf_true, num_classes=self.num_classes)
+        # acc = accuracy(torch.argmax(y_clf_pred, dim=1),
+        #                y_clf_true, num_classes=self.num_classes)
 
-        self.log_losses_and_metrics(clf_loss, reg_loss, acc, mode='train')
+        # self.log_losses_and_metrics(clf_loss, reg_loss, acc, mode='train')
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -61,10 +61,10 @@ class LightningModel(pl.LightningModule):
         clf_loss = F.cross_entropy(y_clf_pred, y_clf_true)
         reg_loss = multitask_l1(y_reg_pred, y_reg_true)
         loss = self.clf_weight*clf_loss + self.reg_weight*reg_loss
-        acc = accuracy(torch.argmax(y_clf_pred, dim=1),
-                       y_clf_true, num_classes=self.num_classes)
+        # acc = accuracy(torch.argmax(y_clf_pred, dim=1),
+        #                y_clf_true, num_classes=self.num_classes)
 
-        self.log_losses_and_metrics(clf_loss, reg_loss, acc, mode='val')
+        # self.log_losses_and_metrics(clf_loss, reg_loss, acc, mode='val')
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(),
