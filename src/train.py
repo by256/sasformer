@@ -7,7 +7,7 @@ from typing import Union
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
-from pytorch_lightning.strategies import DDPStrategy
+# from pytorch_lightning.strategies import DDPStrategy
 
 from model import LightningModel
 from data import log_relevant_regression_targets, get_scalers, SASDataset
