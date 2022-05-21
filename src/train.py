@@ -15,7 +15,7 @@ from perceiver_io import PerceiverEncoder, PerceiverDecoder, SASPerceiverIO, Tas
 
 
 if __name__ == '__main__':
-    os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
+    #os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
     # from https://github.com/PyTorchLightning/pytorch-lightning/issues/4420
     # os.environ['NCCL_P2P_DISABLE'] = '1'
     os.environ['NCCL_DEBUG'] = 'INFO'
