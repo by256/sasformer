@@ -55,7 +55,7 @@ if __name__ == '__main__':
     parser.add_argument('--max_epochs', default=1000,
                         type=int, metavar='max_epochs')
     parser.add_argument('--devices', default='gpus',
-                        type=Union[str, int], metavar='devices')
+                        type=str, metavar='devices')
     parser.add_argument('--gpus', default=1, type=int, metavar='gpus')
     parser.add_argument('--accumulate_grad_batches', default=1,
                         type=int, metavar='accumulate_grad_batches')
