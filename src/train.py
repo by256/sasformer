@@ -54,8 +54,8 @@ if __name__ == '__main__':
     parser.add_argument('--lr', default=5e-4, type=float, metavar='lr')
     parser.add_argument('--max_epochs', default=1000,
                         type=int, metavar='max_epochs')
-    parser.add_argument('--devices', default='gpus',
-                        type=str, metavar='devices')
+    # parser.add_argument('--devices', default='gpus',
+    #                     type=str, metavar='devices')
     parser.add_argument('--gpus', default=1, type=int, metavar='gpus')
     parser.add_argument('--accumulate_grad_batches', default=1,
                         type=int, metavar='accumulate_grad_batches')
@@ -125,7 +125,7 @@ if __name__ == '__main__':
     strategy = DDPStrategy(
         find_unused_parameters=False) if namespace.strategy == 'ddp' else namespace.strategy
     trainer = pl.Trainer(gpus=namespace.gpus,
-                         devices=namespace.devices,
+                        #  devices=namespace.devices,
                          max_epochs=namespace.max_epochs,
                          logger=logger,
                          precision=16,
