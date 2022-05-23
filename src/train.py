@@ -1,5 +1,6 @@
 import os
 import socket
+import wandb
 import argparse
 import numpy as np
 import pandas as pd
@@ -8,6 +9,7 @@ from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 from pytorch_lightning.strategies import DDPStrategy
+from pytorch_lightning.loggers.wandb import WandbLogger
 
 from model import LightningModel
 from data import log_relevant_regression_targets, get_scalers, SASDataset
@@ -15,7 +17,7 @@ from perceiver_io import PerceiverEncoder, PerceiverDecoder, SASPerceiverIO, Tas
 
 
 if __name__ == '__main__':
-    os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
+    # os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
     # from https://github.com/PyTorchLightning/pytorch-lightning/issues/4420
     # os.environ['NCCL_P2P_DISABLE'] = '1'
     # os.environ['NCCL_DEBUG'] = 'INFO'
@@ -78,13 +80,16 @@ if __name__ == '__main__':
     # load data (and split if necessary)
     train = pd.read_parquet(os.path.join(
         data_dir, namespace.sub_dir, 'train.parquet'))
+    # train = train.sample(n=512)  # for debugging REMOVE THIS LATER
     num_clf = len(np.unique(train['model']))
     num_reg = len([x for x in train.columns if x.startswith('reg')])
 
     train = log_relevant_regression_targets(train, data_dir)
     if namespace.val_size > 0.0:
-        train, val = train_test_split(train, test_size=namespace.val_size,
-                                      stratify=train['model_label'], random_state=namespace.seed)
+        train, val = train_test_split(train,
+                                      test_size=namespace.val_size,
+                                      stratify=train['model_label'],
+                                      random_state=namespace.seed)
 
     # calculate input and output scalers
     Iq_scaler, reg_target_scaler = get_scalers(train)
@@ -101,8 +106,8 @@ if __name__ == '__main__':
             val_dataset, batch_size=namespace.batch_size, num_workers=0)
 
     # initialize model and trainer
-    logger = pl.loggers.TensorBoardLogger(os.path.join(
-        root_dir, namespace.log_dir), default_hp_metric=False)
+    logger = WandbLogger(project='sas-perceiver',
+                         save_dir=os.path.join(root_dir, namespace.log_dir))
 
     encoder = PerceiverEncoder(num_latents=namespace.latent_dim,
                                latent_dim=namespace.latent_dim,

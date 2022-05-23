@@ -77,21 +77,11 @@ class LightningModel(pl.LightningModule):
                 'lr_scheduler': {'scheduler': lr_scheduler}}
 
     def log_losses_and_metrics(self, clf_loss, reg_loss, acc, mode='train'):
-        if 'ddp' in self.trainer.strategy.strategy_name:
-            self.log(f'{mode}_clf_loss', self.clf_weight*clf_loss,
-                     on_step=False, on_epoch=True, sync_dist=True)
-            self.log(f'{mode}_reg_loss', self.reg_weight*reg_loss,
-                     on_step=False, on_epoch=True, sync_dist=True)
-            self.log(f'{mode}_accuracy', acc, on_step=False,
-                     on_epoch=True, sync_dist=True)
-            self.log(f'{mode}_mae', reg_loss, on_step=False,
-                     on_epoch=True, sync_dist=True)
-        else:
-            self.logger.experiment.add_scalars(
-                'clf_loss', {mode: self.clf_weight*clf_loss}, global_step=self.current_epoch)
-            self.logger.experiment.add_scalars(
-                'reg_loss', {mode: self.reg_weight*reg_loss}, global_step=self.current_epoch)
-            self.logger.experiment.add_scalars(
-                'accuracy', {mode: acc}, global_step=self.current_epoch)
-            self.logger.experiment.add_scalars(
-                'mae', {mode: reg_loss}, global_step=self.current_epoch)
+        self.log(f'{mode}/clf_loss', self.clf_weight*clf_loss,
+                 on_step=False, on_epoch=True, sync_dist=True)
+        self.log(f'{mode}/reg_loss', self.reg_weight*reg_loss,
+                 on_step=False, on_epoch=True, sync_dist=True)
+        self.log(f'{mode}/accuracy', acc, on_step=False,
+                 on_epoch=True)  # torchmetrics doesn't need sync_dist
+        self.log(f'{mode}/mae', reg_loss, on_step=False,
+                 on_epoch=True, sync_dist=True)
