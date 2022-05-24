@@ -56,7 +56,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', default=1024,
                         type=int, metavar='batch_size')
     parser.add_argument('--lr', default=5e-4, type=float, metavar='lr')
-    parser.add_argument('--max_epochs', default=1000,
+    parser.add_argument('--max_epochs', default=500,
                         type=int, metavar='max_epochs')
     # parser.add_argument('--devices', default='gpus',
     #                     type=str, metavar='devices')
