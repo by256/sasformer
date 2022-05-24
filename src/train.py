@@ -28,6 +28,8 @@ if __name__ == '__main__':
                         help='Directory containing data files.', metavar='data_dir')
     parser.add_argument('--sub_dir', default='large', type=str,
                         help='Directory containing parquet files within data_dir.', metavar='sub_dir')
+    parser.add_argument('--project_name', default='sas-perceiver', type=str,
+                        help='Project name for logging.', metavar='project_name')
     parser.add_argument('--val_size', default=0.25, type=float,
                         help='Proportion of data to split for validation', metavar='val_size')
     parser.add_argument('--log_dir', default='../logs/', type=str,
@@ -56,8 +58,8 @@ if __name__ == '__main__':
     parser.add_argument('--lr', default=5e-4, type=float, metavar='lr')
     parser.add_argument('--max_epochs', default=1000,
                         type=int, metavar='max_epochs')
-    parser.add_argument('--devices', default='gpus',
-                        type=str, metavar='devices')
+    # parser.add_argument('--devices', default='gpus',
+    #                     type=str, metavar='devices')
     parser.add_argument('--gpus', default=1, type=int, metavar='gpus')
     parser.add_argument('--accumulate_grad_batches', default=1,
                         type=int, metavar='accumulate_grad_batches')
@@ -80,7 +82,7 @@ if __name__ == '__main__':
     # load data (and split if necessary)
     train = pd.read_parquet(os.path.join(
         data_dir, namespace.sub_dir, 'train.parquet'))
-    # train = train.sample(n=512)  # for debugging REMOVE THIS LATER
+    # train = train.sample(n=4096)  # for debugging REMOVE THIS LATER
     num_clf = len(np.unique(train['model']))
     num_reg = len([x for x in train.columns if x.startswith('reg')])
 
@@ -106,8 +108,9 @@ if __name__ == '__main__':
             val_dataset, batch_size=namespace.batch_size, num_workers=0)
 
     # initialize model and trainer
-    logger = WandbLogger(project='sas-perceiver',
-                         save_dir=os.path.join(root_dir, namespace.log_dir))
+    logger = WandbLogger(project=namespace.project_name,
+                         save_dir=os.path.join(root_dir, namespace.log_dir),
+                         log_model='all')
 
     encoder = PerceiverEncoder(num_latents=namespace.latent_dim,
                                latent_dim=namespace.latent_dim,
@@ -130,7 +133,7 @@ if __name__ == '__main__':
     strategy = DDPStrategy(
         find_unused_parameters=False) if namespace.strategy == 'ddp' else namespace.strategy
     trainer = pl.Trainer(gpus=namespace.gpus,
-                         devices=namespace.devices,
+                         #  devices=namespace.devices,
                          max_epochs=namespace.max_epochs,
                          logger=logger,
                          precision=16,
