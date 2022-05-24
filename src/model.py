@@ -51,8 +51,11 @@ class LightningModel(pl.LightningModule):
         loss = self.clf_weight*clf_loss + self.reg_weight*reg_loss
         acc = accuracy(torch.argmax(y_clf_pred, dim=1),
                        y_clf_true, num_classes=self.num_classes)
+        current_lr = self.trainer.optimizers[0].state_dict()[
+            "param_groups"][0]["lr"]
 
-        self.log_losses_and_metrics(clf_loss, reg_loss, acc, mode='train')
+        self.log_losses_and_metrics(
+            clf_loss, reg_loss, acc, current_lr, mode='train')
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -77,7 +80,7 @@ class LightningModel(pl.LightningModule):
         return {'optimizer': optimizer,
                 'lr_scheduler': {'scheduler': lr_scheduler}}
 
-    def log_losses_and_metrics(self, clf_loss, reg_loss, acc, mode='train'):
+    def log_losses_and_metrics(self, clf_loss, reg_loss, acc, lr=None, mode='train'):
         self.log(f'{mode}/clf_loss', self.clf_weight*clf_loss,
                  on_step=False, on_epoch=True, sync_dist=True)
         self.log(f'{mode}/reg_loss', self.reg_weight*reg_loss,
@@ -86,3 +89,6 @@ class LightningModel(pl.LightningModule):
                  on_epoch=True)  # torchmetrics doesn't need sync_dist
         self.log(f'{mode}/mae', reg_loss, on_step=False,
                  on_epoch=True, sync_dist=True)
+        if lr is not None and mode == 'train':
+            self.log('trainer/lr', lr, on_step=False,
+                     on_epoch=True, rank_zero_only=True)
