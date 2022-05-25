@@ -11,9 +11,8 @@ import pytorch_lightning as pl
 from pytorch_lightning.strategies import DDPStrategy
 from pytorch_lightning.loggers.wandb import WandbLogger
 
-from model import LightningModel
+from model import SASPerceiverIOModel
 from data import log_relevant_regression_targets, get_scalers, SASDataset
-from perceiver_io import PerceiverEncoder, PerceiverDecoder, SASPerceiverIO, TaskDecoder
 
 
 if __name__ == '__main__':
@@ -37,33 +36,57 @@ if __name__ == '__main__':
     # encoder args
     parser.add_argument('--latent_dim', default=256,
                         type=int, metavar='latent_dim')
-    parser.add_argument('--encoder_num_self_attn_per_block', default=4,
+    parser.add_argument('--enc_num_self_attn_per_block', default=4,
                         type=int, metavar='encoder_num_self_attn_per_block')
-    parser.add_argument('--encoder_num_self_attn_heads', default=2,
+    parser.add_argument('--enc_num_self_attn_heads', default=2,
                         type=int, metavar='encoder_num_self_attn_heads')
+    parser.add_argument('--enc_num_cross_attn_heads', default=1,
+                        type=int, metavar='enc_num_cross_attn_heads')
+    parser.add_argument('--enc_cross_attn_widening_factor', default=1,
+                        type=int, metavar='enc_cross_attn_widening_factor')
+    parser.add_argument('--enc_self_attn_widening_factor', default=1,
+                        type=int, metavar='enc_self_attn_widening_factor')
+    parser.add_argument('--enc_dropout', default=0.1,
+                        type=float, metavar='enc_dropout')
+    parser.add_argument('--enc_cross_attention_dropout', default=0.1,
+                        type=float, metavar='enc_cross_attention_dropout')
+    parser.add_argument('--enc_self_attention_dropout', default=0.1,
+                        type=float, metavar='enc_self_attention_dropout')
     # model (clf) decoder args
-    parser.add_argument('--model_decoder_num_heads', default=1,
+    parser.add_argument('--model_dec_widening_factor', default=1,
+                        type=int, metavar='model_dec_widening_factor')
+    parser.add_argument('--model_dec_num_heads', default=1,
                         type=int, metavar='model_decoder_num_heads')
+    parser.add_argument('--model_dec_qk_out_dim', default=64,
+                        type=int, metavar='model_dec_qk_out_dim')
+    parser.add_argument('--model_dec_dropout', default=0.1,
+                        type=float, metavar='model_dec_dropout')
+    parser.add_argument('--model_dec_attn_dropout', default=0.1,
+                        type=float, metavar='model_dec_attn_dropout')
     # param (reg) decoder args
-    parser.add_argument('--param_decoder_num_heads', default=2,
+    parser.add_argument('--param_dec_widening_factor', default=1,
+                        type=int, metavar='param_dec_widening_factor')
+    parser.add_argument('--param_dec_num_heads', default=2,
                         type=int, metavar='param_decoder_num_heads')
+    parser.add_argument('--param_dec_qk_out_dim', default=256,
+                        type=int, metavar='param_dec_qk_out_dim')
+    parser.add_argument('--param_dec_dropout', default=0.2,
+                        type=float, metavar='param_dec_dropout')
+    parser.add_argument('--param_dec_attn_dropout', default=0.2,
+                        type=float, metavar='param_dec_attn_dropout')
     # lightning model args
     parser.add_argument('--clf_weight', default=1.0,
                         type=float, metavar='clf_weight')
-    parser.add_argument('--reg_weight', default=1.0,
+    parser.add_argument('--reg_weight', default=0.05,
                         type=float, metavar='reg_weight')
-    # trainer args
+    # lightning trainer args
     parser.add_argument('--batch_size', default=1024,
                         type=int, metavar='batch_size')
     parser.add_argument('--lr', default=5e-4, type=float, metavar='lr')
+    parser.add_argument('--weight_decay', default=1e-8,
+                        type=float, metavar='weight_decay')
     parser.add_argument('--max_epochs', default=500,
                         type=int, metavar='max_epochs')
-    parser.add_argument('--param_dec_dropout', default=0.2, type=int,
-                        help='Dropout in regression decoder', metavar='param_dec_dropout')
-    parser.add_argument('--param_dec_attn_dropout', default=0.2, type=int,
-                        help='Attn dropout in regression decoder', metavar='param_dec_attn_dropout')
-    # parser.add_argument('--devices', default='gpus',
-    #                     type=str, metavar='devices')
     parser.add_argument('--gpus', default=1, type=int, metavar='gpus')
     parser.add_argument('--accumulate_grad_batches', default=1,
                         type=int, metavar='accumulate_grad_batches')
@@ -116,25 +139,33 @@ if __name__ == '__main__':
                          save_dir=os.path.join(root_dir, namespace.log_dir),
                          log_model='all')
 
-    encoder = PerceiverEncoder(num_latents=namespace.latent_dim,
-                               latent_dim=namespace.latent_dim,
-                               input_dim=1,
-                               num_self_attn_per_block=namespace.encoder_num_self_attn_per_block,
-                               num_self_attn_heads=namespace.encoder_num_self_attn_heads)
-    sas_model_decoder = TaskDecoder(latent_dim=namespace.latent_dim,
-                                    num_heads=namespace.model_decoder_num_heads,
-                                    qk_out_dim=namespace.latent_dim//4,
-                                    num_outputs=num_clf)
-    sas_param_decoder = TaskDecoder(latent_dim=namespace.latent_dim,
-                                    num_heads=namespace.param_decoder_num_heads,
-                                    qk_out_dim=namespace.latent_dim,
-                                    num_outputs=num_reg,
-                                    dropout=namespace.param_dec_dropout,
-                                    attention_dropout=namespace.param_dec_attn_dropout)
-
-    perceiver = SASPerceiverIO(encoder, sas_model_decoder, sas_param_decoder)
-    model = LightningModel(perceiver, num_clf, lr=namespace.lr,
-                           clf_weight=namespace.clf_weight, reg_weight=namespace.reg_weight)
+    model = SASPerceiverIOModel(num_clf,
+                                num_reg,
+                                latent_dim=namespace.latent_dim,
+                                enc_num_self_attn_per_block=namespace.enc_num_self_attn_per_block,
+                                enc_num_cross_attn_heads=namespace.enc_num_cross_attn_heads,
+                                enc_num_self_attn_heads=namespace.enc_num_self_attn_heads,
+                                enc_cross_attn_widening_factor=namespace.enc_cross_attn_widening_factor,
+                                enc_self_attn_widening_factor=namespace.enc_self_attn_widening_factor,
+                                enc_dropout=namespace.enc_dropout,
+                                enc_cross_attention_dropout=namespace.enc_cross_attention_dropout,
+                                enc_self_attention_dropout=namespace.enc_self_attention_dropout,
+                                model_dec_widening_factor=namespace.model_dec_widening_factor,
+                                model_dec_num_heads=namespace.model_dec_num_heads,
+                                model_dec_qk_out_dim=namespace.model_dec_qk_out_dim,
+                                model_dec_dropout=namespace.model_dec_dropout,
+                                model_dec_attn_dropout=namespace.model_dec_attn_dropout,
+                                param_dec_widening_factor=namespace.param_dec_widening_factor,
+                                param_dec_num_heads=namespace.param_dec_num_heads,
+                                param_dec_qk_out_dim=namespace.param_dec_qk_out_dim,
+                                param_dec_dropout=namespace.param_dec_dropout,
+                                param_dec_attn_dropout=namespace.param_dec_attn_dropout,
+                                lr=namespace.lr,
+                                weight_decay=namespace.weight_decay,
+                                clf_weight=namespace.clf_weight,
+                                reg_weight=namespace.reg_weight,
+                                x_scaler=Iq_scaler,
+                                y_scaler=reg_target_scaler)
 
     strategy = DDPStrategy(
         find_unused_parameters=False) if namespace.strategy == 'ddp' else namespace.strategy

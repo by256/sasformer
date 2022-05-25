@@ -6,6 +6,7 @@ from torchmetrics.functional import accuracy
 from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
 
 from data import IqScaler, RegressionScaler
+from perceiver_io import PerceiverEncoder, PerceiverDecoder, SASPerceiverIO, TaskDecoder
 
 
 def multitask_l1(pred: torch.Tensor, target: torch.Tensor):
@@ -18,19 +19,37 @@ def multitask_mse(pred: torch.Tensor, target: torch.Tensor):
     return F.mse_loss(pred[valid_idx], target[valid_idx])
 
 
-class LightningModel(pl.LightningModule):
+class SASPerceiverIOModel(pl.LightningModule):
 
     def __init__(self,
-                 model: nn.Module,
                  num_classes: int,
+                 num_reg_outputs: int,
+                 latent_dim: int = 256,
+                 enc_num_self_attn_per_block: int = 2,
+                 enc_num_cross_attn_heads: int = 1,
+                 enc_num_self_attn_heads: int = 8,
+                 enc_cross_attn_widening_factor: int = 1,
+                 enc_self_attn_widening_factor: int = 1,
+                 enc_dropout: float = 0.1,
+                 enc_cross_attention_dropout: float = 0.1,
+                 enc_self_attention_dropout: float = 0.1,
+                 model_dec_widening_factor: int = 1,
+                 model_dec_num_heads: int = 1,
+                 model_dec_qk_out_dim: int = 64,
+                 model_dec_dropout: float = 0.1,
+                 model_dec_attn_dropout: float = 0.1,
+                 param_dec_widening_factor: int = 1,
+                 param_dec_num_heads: int = 2,
+                 param_dec_qk_out_dim: int = 256,
+                 param_dec_dropout: float = 0.2,
+                 param_dec_attn_dropout: float = 0.2,
                  lr: float = 5e-4,
-                 weight_decay: float = 1e-7,
+                 weight_decay: float = 1e-8,
                  clf_weight: float = 1.0,
                  reg_weight: float = 1.0,
                  x_scaler: IqScaler = None,
                  y_scaler: RegressionScaler = None):
         super().__init__()
-        self.model = model
         self.clf_weight = clf_weight
         self.reg_weight = reg_weight
         # scalers only for inference
@@ -39,9 +58,39 @@ class LightningModel(pl.LightningModule):
         # metrics
         self.num_classes = num_classes
         self.save_hyperparameters(ignore=['model'])
+        # encoder
+        self.encoder = PerceiverEncoder(num_latents=latent_dim,
+                                        latent_dim=latent_dim,
+                                        input_dim=1,
+                                        num_self_attn_per_block=enc_num_self_attn_per_block,
+                                        num_cross_attn_heads=enc_num_cross_attn_heads,
+                                        num_self_attn_heads=enc_num_self_attn_heads,
+                                        cross_attn_widening_factor=enc_cross_attn_widening_factor,
+                                        self_attn_widening_factor=enc_self_attn_widening_factor,
+                                        dropout=enc_dropout,
+                                        cross_attention_dropout=enc_cross_attention_dropout,
+                                        self_attention_dropout=enc_self_attention_dropout)
+        # clf decoder
+        self.sas_model_decoder = TaskDecoder(num_outputs=num_classes,
+                                             latent_dim=latent_dim,
+                                             widening_factor=model_dec_widening_factor,
+                                             num_heads=model_dec_num_heads,
+                                             qk_out_dim=model_dec_qk_out_dim,
+                                             dropout=model_dec_dropout,
+                                             attention_dropout=model_dec_attn_dropout)
+        # reg decoder
+        self.sas_param_decoder = TaskDecoder(num_outputs=num_reg_outputs,
+                                             latent_dim=latent_dim,
+                                             widening_factor=param_dec_widening_factor,
+                                             num_heads=param_dec_num_heads,
+                                             qk_out_dim=param_dec_qk_out_dim,
+                                             dropout=param_dec_dropout,
+                                             attention_dropout=param_dec_attn_dropout)
+        self.perceiver = SASPerceiverIO(
+            self.encoder, self.sas_model_decoder, self.sas_param_decoder)
 
     def forward(self, x):
-        return self.model(x)
+        return self.perceiver(x)
 
     def training_step(self, batch, batch_idx):
         x, y_clf_true, y_reg_true = batch
