@@ -51,7 +51,9 @@ class PerceiverDecoder(BasePerceiverDecoder):
         qk_out_dim: Optional[int] = None,
         v_out_dim: Optional[int] = None,
         projection_dim: Optional[int] = None,
-        use_query_residual: bool = False
+        use_query_residual: bool = True,
+        dropout: float = 0.0,
+        attention_dropout: float = 0.0
     ):
         super().__init__()
         self.cross_attention = CrossAttention(
@@ -61,7 +63,9 @@ class PerceiverDecoder(BasePerceiverDecoder):
             num_heads=num_heads,
             qk_out_dim=qk_out_dim,
             v_out_dim=v_out_dim,
-            use_query_residual=use_query_residual
+            use_query_residual=use_query_residual,
+            dropout=dropout,
+            attention_dropout=attention_dropout
         )
         if projection_dim is not None:
             self.projection = nn.Linear(query_dim, projection_dim)
@@ -135,7 +139,9 @@ class TaskDecoder(BasePerceiverDecoder):
         qk_out_dim: Optional[int] = None,
         v_out_dim: Optional[int] = None,
         projection_dim: Optional[int] = None,
-        head_dim: Optional[int] = None
+        head_dim: Optional[int] = None,
+        dropout: float = 0.0,
+        attention_dropout: float = 0.0
     ):
         super().__init__()
         self.task_ids = nn.Parameter(torch.randn(1, num_outputs))
@@ -148,7 +154,9 @@ class TaskDecoder(BasePerceiverDecoder):
             v_out_dim=v_out_dim,
             # head_dim=head_dim,
             projection_dim=projection_dim,
-            use_query_residual=False
+            use_query_residual=True,
+            dropout=dropout,
+            attention_dropout=attention_dropout
         )
 
     def forward(

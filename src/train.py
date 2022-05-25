@@ -58,6 +58,10 @@ if __name__ == '__main__':
     parser.add_argument('--lr', default=5e-4, type=float, metavar='lr')
     parser.add_argument('--max_epochs', default=500,
                         type=int, metavar='max_epochs')
+    parser.add_argument('--param_dec_dropout', default=0.2, type=int,
+                        help='Dropout in regression decoder', metavar='param_dec_dropout')
+    parser.add_argument('--param_dec_attn_dropout', default=0.2, type=int,
+                        help='Attn dropout in regression decoder', metavar='param_dec_attn_dropout')
     # parser.add_argument('--devices', default='gpus',
     #                     type=str, metavar='devices')
     parser.add_argument('--gpus', default=1, type=int, metavar='gpus')
@@ -124,7 +128,9 @@ if __name__ == '__main__':
     sas_param_decoder = TaskDecoder(latent_dim=namespace.latent_dim,
                                     num_heads=namespace.param_decoder_num_heads,
                                     qk_out_dim=namespace.latent_dim,
-                                    num_outputs=num_reg)
+                                    num_outputs=num_reg,
+                                    dropout=namespace.param_dec_dropout,
+                                    attention_dropout=namespace.param_dec_attn_dropout)
 
     perceiver = SASPerceiverIO(encoder, sas_model_decoder, sas_param_decoder)
     model = LightningModel(perceiver, num_clf, lr=namespace.lr,
