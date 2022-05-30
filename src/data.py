@@ -3,8 +3,12 @@ import json
 import torch
 import numpy as np
 import pandas as pd
-from typing import Tuple
 from dataclasses import dataclass
+from typing import Tuple, Optional
+from sklearn.model_selection import train_test_split
+
+from torch.utils.data import DataLoader
+import pytorch_lightning as pl
 
 
 def raw_data_to_df(data_dir: str, sub_dir: str = 'large', step: int = 2) -> pd.DataFrame:
@@ -46,7 +50,8 @@ def raw_data_to_df(data_dir: str, sub_dir: str = 'large', step: int = 2) -> pd.D
 
         n_model_rows = model_I_q.shape[0]
         for i in range(n_model_rows):
-            I_q = {'I(q={})'.format(q_values[j]): model_I_q[i, j] for j in range(n_q)}
+            I_q = {'I(q={})'.format(q_values[j])
+                      : model_I_q[i, j] for j in range(n_q)}
             clf_labels = {'model': model_name, 'model_label': model_idx}
             reg_targets = {param_names[j]: param_values[i, j]
                            for j in range(len(param_names))}
@@ -142,3 +147,71 @@ def get_scalers(df_train: pd.DataFrame) -> Tuple[IqScaler, RegressionScaler]:
         df_train[reg_target_columns].values, axis=0)  # feature-wise
     reg_target_scaler = RegressionScaler(mean=reg_mean, std=reg_std)
     return Iq_scaler, reg_target_scaler
+
+
+class SASDataModule(pl.LightningDataModule):
+    def __init__(self, data_dir: str, sub_dir: str, batch_size: int, val_size: float = 0.0, seed: int = None):
+        super().__init__()
+        self.data_dir = data_dir
+        self.sub_dir = sub_dir
+        self.batch_size = batch_size
+        self.val_size = val_size
+        self.seed = seed
+        self.num_clf = None
+        self.num_reg = None
+        self.Iq_scaler = None
+        self.reg_target_scaler = None
+        # self.setup_done = False
+
+    def setup(self, stage: Optional[str] = None):
+        # if not self.setup_done:
+        train = pd.read_parquet(os.path.join(
+            self.data_dir, self.sub_dir, 'train.parquet'))
+        train = train.sample(n=8192)  # for debugging REMOVE THIS LATER
+        test = pd.read_parquet(os.path.join(
+            self.data_dir, self.sub_dir, 'test.parquet'))
+
+        self.num_clf = len(np.unique(train['model']))
+        self.num_reg = len(
+            [x for x in train.columns if x.startswith('reg')])
+
+        train = log_relevant_regression_targets(train, self.data_dir)
+        if self.val_size > 0.0:
+            train, val = train_test_split(train,
+                                          test_size=self.val_size,
+                                          stratify=train['model_label'],
+                                          random_state=self.seed)
+
+        # calculate input and output scalers
+        Iq_scaler, reg_target_scaler = get_scalers(train)
+        self.Iq_scaler = Iq_scaler
+        self.reg_target_scaler = reg_target_scaler
+
+        # PyTorch dataset classes
+        self.train_dataset = SASDataset(
+            train, noise=False, x_scaler=Iq_scaler, y_scaler=reg_target_scaler)
+
+        if self.val_size > 0.0:
+            self.val_dataset = SASDataset(
+                val, noise=False, x_scaler=Iq_scaler, y_scaler=reg_target_scaler)
+
+        self.test_dataset = SASDataset(
+            test, noise=False, x_scaler=Iq_scaler, y_scaler=reg_target_scaler)
+
+        # self.setup_done = True
+
+    def train_dataloader(self):
+        return DataLoader(self.train_dataset, batch_size=self.batch_size)
+
+    def val_dataloader(self):
+        return DataLoader(self.val_dataset, batch_size=self.batch_size)
+
+    def test_dataloader(self):
+        return DataLoader(self.test_dataset, batch_size=self.batch_size)
+
+    def predict_dataloader(self):
+        raise NotImplementedError('predict_dataloader method not implemented.')
+
+    def teardown(self, stage: Optional[str] = None):
+        # Used to clean-up when the run is finished
+        ...

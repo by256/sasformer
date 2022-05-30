@@ -5,23 +5,15 @@ import argparse
 import numpy as np
 import pandas as pd
 from typing import Union
-from sklearn.model_selection import train_test_split
-from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 from pytorch_lightning.strategies import DDPStrategy
 from pytorch_lightning.loggers.wandb import WandbLogger
 
 from model import SASPerceiverIOModel
-from data import log_relevant_regression_targets, get_scalers, SASDataset
+from data import SASDataModule
 
 
 if __name__ == '__main__':
-    # os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
-    # from https://github.com/PyTorchLightning/pytorch-lightning/issues/4420
-    # os.environ['NCCL_P2P_DISABLE'] = '1'
-    # os.environ['NCCL_DEBUG'] = 'INFO'
-    # os.environ['NCCL_DEBUG_SUBSYS'] = 'ALL'
-
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_dir', default='../data/', type=str,
                         help='Directory containing data files.', metavar='data_dir')
@@ -87,6 +79,8 @@ if __name__ == '__main__':
                         type=float, metavar='weight_decay')
     parser.add_argument('--max_epochs', default=500,
                         type=int, metavar='max_epochs')
+    parser.add_argument('--gradient_clip_val', default=3.0,
+                        type=float, metavar='gradient_clip_val')
     parser.add_argument('--gpus', default=1, type=int, metavar='gpus')
     parser.add_argument('--accumulate_grad_batches', default=1,
                         type=int, metavar='accumulate_grad_batches')
@@ -106,41 +100,21 @@ if __name__ == '__main__':
     root_dir = os.path.dirname(os.path.abspath(__file__))
     data_dir = os.path.join(root_dir, namespace.data_dir)
 
-    # load data (and split if necessary)
-    train = pd.read_parquet(os.path.join(
-        data_dir, namespace.sub_dir, 'train.parquet'))
-    # train = train.sample(n=4096)  # for debugging REMOVE THIS LATER
-    num_clf = len(np.unique(train['model']))
-    num_reg = len([x for x in train.columns if x.startswith('reg')])
-
-    train = log_relevant_regression_targets(train, data_dir)
-    if namespace.val_size > 0.0:
-        train, val = train_test_split(train,
-                                      test_size=namespace.val_size,
-                                      stratify=train['model_label'],
-                                      random_state=namespace.seed)
-
-    # calculate input and output scalers
-    Iq_scaler, reg_target_scaler = get_scalers(train)
-
-    # PyTorch dataset class and loaders
-    train_dataset = SASDataset(
-        train, noise=False, x_scaler=Iq_scaler, y_scaler=reg_target_scaler)
-    train_loader = DataLoader(
-        train_dataset, batch_size=namespace.batch_size, shuffle=True, num_workers=0)
-    if namespace.val_size > 0.0:
-        val_dataset = SASDataset(
-            val, noise=False, x_scaler=Iq_scaler, y_scaler=reg_target_scaler)
-        val_loader = DataLoader(
-            val_dataset, batch_size=namespace.batch_size, num_workers=0)
+    datamodule = SASDataModule(data_dir=data_dir,
+                               sub_dir=namespace.sub_dir,
+                               batch_size=namespace.batch_size,
+                               val_size=namespace.val_size,
+                               seed=namespace.seed)
+    datamodule.setup()  # needed to initialze num_reg, num_clf and scalers
 
     # initialize model and trainer
     logger = WandbLogger(project=namespace.project_name,
                          save_dir=os.path.join(root_dir, namespace.log_dir),
                          log_model='all')
+    # logger = None
 
-    model = SASPerceiverIOModel(num_clf,
-                                num_reg,
+    model = SASPerceiverIOModel(datamodule.num_clf,
+                                datamodule.num_reg,
                                 latent_dim=namespace.latent_dim,
                                 enc_num_self_attn_per_block=namespace.enc_num_self_attn_per_block,
                                 enc_num_cross_attn_heads=namespace.enc_num_cross_attn_heads,
@@ -161,17 +135,18 @@ if __name__ == '__main__':
                                 param_dec_dropout=namespace.param_dec_dropout,
                                 param_dec_attn_dropout=namespace.param_dec_attn_dropout,
                                 lr=namespace.lr,
+                                batch_size=namespace.batch_size,
                                 weight_decay=namespace.weight_decay,
                                 clf_weight=namespace.clf_weight,
                                 reg_weight=namespace.reg_weight,
-                                x_scaler=Iq_scaler,
-                                y_scaler=reg_target_scaler)
+                                x_scaler=datamodule.Iq_scaler,
+                                y_scaler=datamodule.reg_target_scaler)
 
     strategy = DDPStrategy(
         find_unused_parameters=False) if namespace.strategy == 'ddp' else namespace.strategy
     trainer = pl.Trainer(gpus=namespace.gpus,
-                         #  devices=namespace.devices,
                          max_epochs=namespace.max_epochs,
+                         gradient_clip_val=namespace.gradient_clip_val,
                          logger=logger,
                          precision=16,
                          accumulate_grad_batches=namespace.accumulate_grad_batches,
@@ -180,6 +155,6 @@ if __name__ == '__main__':
                          num_nodes=namespace.num_nodes,
                          flush_logs_every_n_steps=1e12  # this prevents training from freezing at 100 steps
                          )
-    trainer.fit(model,
-                train_dataloaders=train_loader,
-                val_dataloaders=val_loader if namespace.val_size > 0 else None)
+
+trainer.fit(model,
+            datamodule=datamodule)
