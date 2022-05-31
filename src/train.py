@@ -123,11 +123,11 @@ if __name__ == '__main__':
                                seed=namespace.seed)
     datamodule.setup()  # needed to initialze num_reg, num_clf and scalers
 
-    # initialize model and trainer
-    # logger = WandbLogger(project=namespace.project_name,
-    #                      save_dir=os.path.join(root_dir, namespace.log_dir),
-    #                      log_model='all')
-    logger = None
+    initialize model and trainer
+    logger = WandbLogger(project=namespace.project_name,
+                         save_dir=os.path.join(root_dir, namespace.log_dir),
+                         log_model='all')
+    # logger = None
 
     params = {'latent_dim': namespace.latent_dim,
               'enc_num_self_attn_per_block': namespace.enc_num_self_attn_per_block,
