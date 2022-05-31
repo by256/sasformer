@@ -1,16 +1,27 @@
 import os
-import socket
+import sys
 import wandb
 import argparse
 import numpy as np
 import pandas as pd
 from typing import Union
+import torch
 import pytorch_lightning as pl
 from pytorch_lightning.strategies import DDPStrategy
 from pytorch_lightning.loggers.wandb import WandbLogger
 
 from model import SASPerceiverIOModel
 from data import SASDataModule
+
+
+def estimate_batch_size(model, datamodule):
+    input_size = sys.getsizeof(
+        datamodule.train_dataset[0][0].shape[0]) * 1e-6
+    model_size = model.model_size  # Mb
+    gpu_mem = torch.cuda.get_device_properties(0).total_memory * 1e-6
+    batch_size_exponent = np.floor(
+        np.log2(gpu_mem / (input_size + model_size))) - 1.0
+    return int(2**batch_size_exponent)
 
 
 if __name__ == '__main__':
@@ -74,6 +85,8 @@ if __name__ == '__main__':
     # lightning trainer args
     parser.add_argument('--batch_size', default=1024,
                         type=int, metavar='batch_size')
+    parser.add_argument('--batch_size_auto', default=False,
+                        type=bool, metavar='batch_size_auto')
     parser.add_argument('--lr', default=5e-4, type=float, metavar='lr')
     parser.add_argument('--weight_decay', default=1e-8,
                         type=float, metavar='weight_decay')
@@ -100,47 +113,61 @@ if __name__ == '__main__':
     root_dir = os.path.dirname(os.path.abspath(__file__))
     data_dir = os.path.join(root_dir, namespace.data_dir)
 
+    # place holder if batch_size_auto = True
+    batch_size = 2 if namespace.batch_size_auto else namespace.batch_size
+
     datamodule = SASDataModule(data_dir=data_dir,
                                sub_dir=namespace.sub_dir,
-                               batch_size=namespace.batch_size,
+                               batch_size=batch_size,
                                val_size=namespace.val_size,
                                seed=namespace.seed)
     datamodule.setup()  # needed to initialze num_reg, num_clf and scalers
 
     # initialize model and trainer
-    logger = WandbLogger(project=namespace.project_name,
-                         save_dir=os.path.join(root_dir, namespace.log_dir),
-                         log_model='all')
-    # logger = None
+    # logger = WandbLogger(project=namespace.project_name,
+    #                      save_dir=os.path.join(root_dir, namespace.log_dir),
+    #                      log_model='all')
+    logger = None
+
+    params = {'latent_dim': namespace.latent_dim,
+              'enc_num_self_attn_per_block': namespace.enc_num_self_attn_per_block,
+              'enc_num_cross_attn_heads': namespace.enc_num_cross_attn_heads,
+              'enc_num_self_attn_heads': namespace.enc_num_self_attn_heads,
+              'enc_cross_attn_widening_factor': namespace.enc_cross_attn_widening_factor,
+              'enc_self_attn_widening_factor': namespace.enc_self_attn_widening_factor,
+              'enc_dropout': namespace.enc_dropout,
+              'enc_cross_attention_dropout': namespace.enc_cross_attention_dropout,
+              'enc_self_attention_dropout': namespace.enc_self_attention_dropout,
+              'model_dec_widening_factor': namespace.model_dec_widening_factor,
+              'model_dec_num_heads': namespace.model_dec_num_heads,
+              'model_dec_qk_out_dim': namespace.model_dec_qk_out_dim,
+              'model_dec_dropout': namespace.model_dec_dropout,
+              'model_dec_attn_dropout': namespace.model_dec_attn_dropout,
+              'param_dec_widening_factor': namespace.param_dec_widening_factor,
+              'param_dec_num_heads': namespace.param_dec_num_heads,
+              'param_dec_qk_out_dim': namespace.param_dec_qk_out_dim,
+              'param_dec_dropout': namespace.param_dec_dropout,
+              'param_dec_attn_dropout': namespace.param_dec_attn_dropout,
+              'lr': namespace.lr,
+              'batch_size': batch_size,
+              'weight_decay': namespace.weight_decay,
+              'clf_weight': namespace.clf_weight,
+              'reg_weight': namespace.reg_weight,
+              'x_scaler': datamodule.Iq_scaler,
+              'y_scaler': datamodule.reg_target_scaler}
 
     model = SASPerceiverIOModel(datamodule.num_clf,
                                 datamodule.num_reg,
-                                latent_dim=namespace.latent_dim,
-                                enc_num_self_attn_per_block=namespace.enc_num_self_attn_per_block,
-                                enc_num_cross_attn_heads=namespace.enc_num_cross_attn_heads,
-                                enc_num_self_attn_heads=namespace.enc_num_self_attn_heads,
-                                enc_cross_attn_widening_factor=namespace.enc_cross_attn_widening_factor,
-                                enc_self_attn_widening_factor=namespace.enc_self_attn_widening_factor,
-                                enc_dropout=namespace.enc_dropout,
-                                enc_cross_attention_dropout=namespace.enc_cross_attention_dropout,
-                                enc_self_attention_dropout=namespace.enc_self_attention_dropout,
-                                model_dec_widening_factor=namespace.model_dec_widening_factor,
-                                model_dec_num_heads=namespace.model_dec_num_heads,
-                                model_dec_qk_out_dim=namespace.model_dec_qk_out_dim,
-                                model_dec_dropout=namespace.model_dec_dropout,
-                                model_dec_attn_dropout=namespace.model_dec_attn_dropout,
-                                param_dec_widening_factor=namespace.param_dec_widening_factor,
-                                param_dec_num_heads=namespace.param_dec_num_heads,
-                                param_dec_qk_out_dim=namespace.param_dec_qk_out_dim,
-                                param_dec_dropout=namespace.param_dec_dropout,
-                                param_dec_attn_dropout=namespace.param_dec_attn_dropout,
-                                lr=namespace.lr,
-                                batch_size=namespace.batch_size,
-                                weight_decay=namespace.weight_decay,
-                                clf_weight=namespace.clf_weight,
-                                reg_weight=namespace.reg_weight,
-                                x_scaler=datamodule.Iq_scaler,
-                                y_scaler=datamodule.reg_target_scaler)
+                                **params)
+
+    if namespace.batch_size_auto:
+        # estimate batch size
+        batch_size = estimate_batch_size(model, datamodule)
+        datamodule.batch_size = batch_size
+        # annoying but necessary for correct wandb batch size logging
+        model.__init__(datamodule.num_clf,
+                       datamodule.num_reg,
+                       **params)
 
     strategy = DDPStrategy(
         find_unused_parameters=False) if namespace.strategy == 'ddp' else namespace.strategy
@@ -156,5 +183,5 @@ if __name__ == '__main__':
                          flush_logs_every_n_steps=1e12  # this prevents training from freezing at 100 steps
                          )
 
-trainer.fit(model,
-            datamodule=datamodule)
+    trainer.fit(model,
+                datamodule=datamodule)
