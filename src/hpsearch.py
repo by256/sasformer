@@ -1,6 +1,7 @@
 import gc
 import os
 import wandb
+import joblib
 import optuna
 import argparse
 import numpy as np
@@ -90,7 +91,7 @@ def objective(trial, namespace, root_dir, data_dir):
                          accumulate_grad_batches=namespace.accumulate_grad_batches,
                          strategy=strategy,
                          num_nodes=namespace.num_nodes,
-                         detect_anomaly=True,
+                         detect_anomaly=False,
                          flush_logs_every_n_steps=1e12  # this prevents training from freezing at 100 steps
                          )
     trainer.fit(model,
@@ -130,6 +131,8 @@ if __name__ == '__main__':
                         help='Set to `ddp` for cluster training', metavar='strategy')
     parser.add_argument('--num_nodes', default=1, type=int,
                         help='N nodes for distributed training.', metavar='num_nodes')
+    parser.add_argument('--resume', default=False, type=bool,
+                        help='Resume search from checkpoint if it exists.', metavar='resume')
     parser.add_argument('--seed', default=None, type=int,
                         help='Random seed.', metavar='seed')
     namespace = parser.parse_args()
@@ -140,8 +143,14 @@ if __name__ == '__main__':
 
     trials_results_path = os.path.join(
         root_dir, namespace.log_dir, 'results.csv')
-    study = optuna.create_study(directions=['maximize', 'minimize'])
+    study_path = os.path.join(root_dir, namespace.log_dir, 'study.pkl')
+
+    if namespace.resume and os.path.isfile(study_path):
+        study = joblib.load(study_path)
+    else:
+        study = optuna.create_study(directions=['maximize', 'minimize'])
     study.optimize(lambda trial: objective(trial, namespace, root_dir, data_dir),
                    n_trials=100,
                    gc_after_trial=True,
-                   callbacks=[lambda study, trial: study.trials_dataframe().to_csv(trials_results_path, index=False)])
+                   callbacks=[lambda study, trial: study.trials_dataframe().to_csv(trials_results_path, index=False),
+                              lambda study, trial: joblib.dump(study, study_path)])
