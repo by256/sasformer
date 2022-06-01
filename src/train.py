@@ -123,7 +123,7 @@ if __name__ == '__main__':
                                seed=namespace.seed)
     datamodule.setup()  # needed to initialze num_reg, num_clf and scalers
 
-    initialize model and trainer
+    # initialize model and trainer
     logger = WandbLogger(project=namespace.project_name,
                          save_dir=os.path.join(root_dir, namespace.log_dir),
                          log_model='all')
