@@ -85,6 +85,8 @@ if __name__ == '__main__':
                         help='Logging directory for Tensorboard', metavar='log_dir')
     parser.add_argument('--from_yaml', default=None, type=str,
                         help='path to hparams yaml file.', metavar='from_yaml')
+    parser.add_argument('--disable_logger', default=False, type=bool,
+                        help='disable logger for debugging.', metavar='disable_logger')
     # encoder args
     parser.add_argument('--latent_dim', default=256,
                         type=int, metavar='latent_dim')
@@ -173,10 +175,13 @@ if __name__ == '__main__':
     datamodule.setup()  # needed to initialze num_reg, num_clf and scalers
 
     # initialize model and trainer
-    logger = WandbLogger(project=namespace.project_name,
-                         save_dir=os.path.join(root_dir, namespace.log_dir),
-                         log_model='all')
-    # logger = None
+    if namespace.disable_logger:
+        logger = None
+    else:
+        logger = WandbLogger(project=namespace.project_name,
+                             save_dir=os.path.join(
+                                 root_dir, namespace.log_dir),
+                             log_model='all')
 
     if namespace.from_yaml is not None:
         params = load_hparams_from_yaml(namespace.from_yaml)
