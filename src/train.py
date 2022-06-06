@@ -1,5 +1,6 @@
 import os
 import sys
+import yaml
 import wandb
 import argparse
 import numpy as np
@@ -24,6 +25,52 @@ def estimate_batch_size(model, datamodule):
     return int(2**batch_size_exponent)
 
 
+def load_hparams_from_yaml(path):
+    keys_to_remove = ['num_classes',
+                      'num_reg_outputs',
+                      'wandb_version',
+                      '_wandb']
+    with open(path, 'r') as stream:
+        params = yaml.safe_load(stream)
+    # remove unwanted keys
+    for key in keys_to_remove:
+        if key in params:
+            del params[key]
+    for key in params.keys():
+        params[key] = params[key]['value']
+    return params
+
+
+def load_hparams_from_namespace(namespace):
+    hparams = {'latent_dim': namespace.latent_dim,
+               'enc_num_self_attn_per_block': namespace.enc_num_self_attn_per_block,
+               'enc_num_cross_attn_heads': namespace.enc_num_cross_attn_heads,
+               'enc_num_self_attn_heads': namespace.enc_num_self_attn_heads,
+               'enc_cross_attn_widening_factor': namespace.enc_cross_attn_widening_factor,
+               'enc_self_attn_widening_factor': namespace.enc_self_attn_widening_factor,
+               'enc_dropout': namespace.enc_dropout,
+               'enc_cross_attention_dropout': namespace.enc_cross_attention_dropout,
+               'enc_self_attention_dropout': namespace.enc_self_attention_dropout,
+               'model_dec_widening_factor': namespace.model_dec_widening_factor,
+               'model_dec_num_heads': namespace.model_dec_num_heads,
+               'model_dec_qk_out_dim': namespace.model_dec_qk_out_dim,
+               'model_dec_dropout': namespace.model_dec_dropout,
+               'model_dec_attn_dropout': namespace.model_dec_attn_dropout,
+               'param_dec_widening_factor': namespace.param_dec_widening_factor,
+               'param_dec_num_heads': namespace.param_dec_num_heads,
+               'param_dec_qk_out_dim': namespace.param_dec_qk_out_dim,
+               'param_dec_dropout': namespace.param_dec_dropout,
+               'param_dec_attn_dropout': namespace.param_dec_attn_dropout,
+               'lr': namespace.lr,
+               'batch_size': batch_size,
+               'weight_decay': namespace.weight_decay,
+               'clf_weight': namespace.clf_weight,
+               'reg_weight': namespace.reg_weight,
+               'x_scaler': datamodule.Iq_scaler,
+               'y_scaler': datamodule.reg_target_scaler}
+    return hparams
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_dir', default='../data/', type=str,
@@ -36,6 +83,8 @@ if __name__ == '__main__':
                         help='Proportion of data to split for validation', metavar='val_size')
     parser.add_argument('--log_dir', default='../logs/', type=str,
                         help='Logging directory for Tensorboard', metavar='log_dir')
+    parser.add_argument('--from_yaml', default=None, type=str,
+                        help='path to hparams yaml file.', metavar='from_yaml')
     # encoder args
     parser.add_argument('--latent_dim', default=256,
                         type=int, metavar='latent_dim')
@@ -129,32 +178,10 @@ if __name__ == '__main__':
                          log_model='all')
     # logger = None
 
-    params = {'latent_dim': namespace.latent_dim,
-              'enc_num_self_attn_per_block': namespace.enc_num_self_attn_per_block,
-              'enc_num_cross_attn_heads': namespace.enc_num_cross_attn_heads,
-              'enc_num_self_attn_heads': namespace.enc_num_self_attn_heads,
-              'enc_cross_attn_widening_factor': namespace.enc_cross_attn_widening_factor,
-              'enc_self_attn_widening_factor': namespace.enc_self_attn_widening_factor,
-              'enc_dropout': namespace.enc_dropout,
-              'enc_cross_attention_dropout': namespace.enc_cross_attention_dropout,
-              'enc_self_attention_dropout': namespace.enc_self_attention_dropout,
-              'model_dec_widening_factor': namespace.model_dec_widening_factor,
-              'model_dec_num_heads': namespace.model_dec_num_heads,
-              'model_dec_qk_out_dim': namespace.model_dec_qk_out_dim,
-              'model_dec_dropout': namespace.model_dec_dropout,
-              'model_dec_attn_dropout': namespace.model_dec_attn_dropout,
-              'param_dec_widening_factor': namespace.param_dec_widening_factor,
-              'param_dec_num_heads': namespace.param_dec_num_heads,
-              'param_dec_qk_out_dim': namespace.param_dec_qk_out_dim,
-              'param_dec_dropout': namespace.param_dec_dropout,
-              'param_dec_attn_dropout': namespace.param_dec_attn_dropout,
-              'lr': namespace.lr,
-              'batch_size': batch_size,
-              'weight_decay': namespace.weight_decay,
-              'clf_weight': namespace.clf_weight,
-              'reg_weight': namespace.reg_weight,
-              'x_scaler': datamodule.Iq_scaler,
-              'y_scaler': datamodule.reg_target_scaler}
+    if namespace.from_yaml is not None:
+        params = load_hparams_from_yaml(namespace.from_yaml)
+    else:
+        params = load_hparams_from_namespace(namespace)
 
     model = SASPerceiverIOModel(datamodule.num_clf,
                                 datamodule.num_reg,
@@ -163,6 +190,7 @@ if __name__ == '__main__':
     if namespace.batch_size_auto:
         # estimate batch size
         batch_size = estimate_batch_size(model, datamodule)
+        params['batch_size'] = batch_size
         datamodule.batch_size = batch_size
         # annoying but necessary for correct wandb batch size logging
         model.__init__(datamodule.num_clf,
