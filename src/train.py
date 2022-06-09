@@ -144,7 +144,7 @@ if __name__ == '__main__':
                         type=float, metavar='weight_decay')
     parser.add_argument('--max_epochs', default=500,
                         type=int, metavar='max_epochs')
-    parser.add_argument('--gradient_clip_val', default=3.0,
+    parser.add_argument('--gradient_clip_val', default=1.0,
                         type=float, metavar='gradient_clip_val')
     parser.add_argument('--gpus', default=1, type=int, metavar='gpus')
     parser.add_argument('--accumulate_grad_batches', default=1,
