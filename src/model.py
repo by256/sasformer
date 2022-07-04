@@ -124,8 +124,7 @@ class SASPerceiverIOModel(pl.LightningModule):
                                      lr=self.hparams.lr,
                                      weight_decay=self.hparams.weight_decay)
         lr_scheduler = LinearWarmupCosineAnnealingLR(optimizer,
-                                                     warmup_epochs=int(
-                                                         0.1*self.trainer.max_epochs),
+                                                     warmup_epochs=15,
                                                      max_epochs=self.trainer.max_epochs)
         return {'optimizer': optimizer,
                 'lr_scheduler': {'scheduler': lr_scheduler}}
