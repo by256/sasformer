@@ -28,7 +28,7 @@ def objective(trial, namespace, root_dir, data_dir):
         'dropout', 0.0, 0.5, step=0.05)
     params_i = {'lr': trial.suggest_loguniform('lr', 1e-5, 1e-3),
                 'batch_size': 2,   # placeholder
-                'latent_dim': trial.suggest_categorical('latent_dim', [32, 48, 64, 96, 128, 192, 256]),
+                'latent_dim': trial.suggest_categorical('latent_dim', [32, 64, 128, 256]),
                 # encoder args
                 'enc_num_self_attn_per_block': trial.suggest_int('enc_num_self_attn_per_block', 2, 4),
                 'enc_num_cross_attn_heads': trial.suggest_int('enc_num_cross_attn_heads', 1, 4),
