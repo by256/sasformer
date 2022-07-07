@@ -30,7 +30,9 @@ def load_hparams_from_yaml(path):
     keys_to_remove = ['num_classes',
                       'num_reg_outputs',
                       'wandb_version',
-                      '_wandb']
+                      '_wandb',
+                      'x_scaler',
+                      'y_scaler']
     with open(path, 'r') as stream:
         params = yaml.safe_load(stream)
     # remove unwanted keys
@@ -66,9 +68,7 @@ def load_hparams_from_namespace(namespace):
                'batch_size': batch_size,
                'weight_decay': namespace.weight_decay,
                'clf_weight': namespace.clf_weight,
-               'reg_weight': namespace.reg_weight,
-               'x_scaler': datamodule.Iq_scaler,
-               'y_scaler': datamodule.reg_target_scaler}
+               'reg_weight': namespace.reg_weight}
     return hparams
 
 
@@ -190,6 +190,8 @@ if __name__ == '__main__':
         params = load_hparams_from_yaml(namespace.from_yaml)
     else:
         params = load_hparams_from_namespace(namespace)
+    params['x_scaler'] = datamodule.Iq_scaler
+    params['y_scaler'] = datamodule.reg_target_scaler
 
     model = SASPerceiverIOModel(datamodule.num_clf,
                                 datamodule.num_reg,
@@ -217,8 +219,8 @@ if __name__ == '__main__':
                          accumulate_grad_batches=namespace.accumulate_grad_batches,
                          deterministic=namespace.deterministic,
                          strategy=strategy,
-                         num_nodes=namespace.num_nodes, 
-                         detect_anomaly=namespace.detect_anomaly, 
+                         num_nodes=namespace.num_nodes,
+                         detect_anomaly=namespace.detect_anomaly,
                          flush_logs_every_n_steps=1e12  # this prevents training from freezing at 100 steps
                          )
 
