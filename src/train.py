@@ -146,6 +146,8 @@ if __name__ == '__main__':
                         type=int, metavar='max_epochs')
     parser.add_argument('--gradient_clip_val', default=1.0,
                         type=float, metavar='gradient_clip_val')
+    parser.add_argument('--ckpt_path', default=None, type=str,
+                        help='Checkpoint path to resume training', metavar='ckpt_path')
     parser.add_argument('--gpus', default=1, type=int, metavar='gpus')
     parser.add_argument('--accumulate_grad_batches', default=1,
                         type=int, metavar='accumulate_grad_batches')
@@ -225,4 +227,5 @@ if __name__ == '__main__':
                          )
 
     trainer.fit(model,
-                datamodule=datamodule)
+                datamodule=datamodule,
+                ckpt_path=namespace.ckpt_path)
