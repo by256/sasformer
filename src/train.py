@@ -151,8 +151,8 @@ if __name__ == '__main__':
     parser.add_argument('--gpus', default=1, type=int, metavar='gpus')
     parser.add_argument('--accumulate_grad_batches', default=1,
                         type=int, metavar='accumulate_grad_batches')
-    parser.add_argument('--overfit_batches', default=0.0,
-                        type=Union[float, int], metavar='overfit_batches')
+    parser.add_argument('--overfit_batches', default=0,
+                        type=int, metavar='overfit_batches')
     parser.add_argument('--detect_anomaly', default=True,
                         type=bool, metavar='detect_anomaly')
     parser.add_argument('--deterministic', default=True,
@@ -169,7 +169,7 @@ if __name__ == '__main__':
     root_dir = os.path.dirname(os.path.abspath(__file__))
     data_dir = os.path.join(root_dir, namespace.data_dir)
 
-    # place holder if batch_size_auto = True
+    # place holder if batch_size_auto == True
     batch_size = 2 if namespace.batch_size_auto else namespace.batch_size
 
     datamodule = SASDataModule(data_dir=data_dir,
@@ -219,6 +219,7 @@ if __name__ == '__main__':
                          precision=16,
                          callbacks=[ckpt_callback],
                          accumulate_grad_batches=namespace.accumulate_grad_batches,
+                         overfit_batches=namespace.overfit_batches,
                          deterministic=namespace.deterministic,
                          strategy=strategy,
                          num_nodes=namespace.num_nodes,
