@@ -211,12 +211,12 @@ if __name__ == '__main__':
 
     strategy = DDPStrategy(
         find_unused_parameters=False) if namespace.strategy == 'ddp' else namespace.strategy
-    ckpt_callback = ModelCheckpoint(every_n_epochs=50)
+    ckpt_callback = ModelCheckpoint(every_n_epochs=1)
     trainer = pl.Trainer(gpus=namespace.gpus,
                          max_epochs=namespace.max_epochs,
                          gradient_clip_val=namespace.gradient_clip_val,
                          logger=logger,
-                         precision=16,
+                         precision=32,
                          callbacks=[ckpt_callback],
                          accumulate_grad_batches=namespace.accumulate_grad_batches,
                          overfit_batches=namespace.overfit_batches,
