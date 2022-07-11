@@ -62,7 +62,8 @@ class SASPerceiverIO(nn.Module):
         self,
         encoder: PerceiverEncoder,
         sas_model_decoder: TaskDecoder,
-        sas_param_decoder: TaskDecoder
+        sas_param_decoder: TaskDecoder,
+        n_bins: int = 640
     ):
         """Constructor.
 
@@ -75,8 +76,8 @@ class SASPerceiverIO(nn.Module):
         self.encoder = encoder
         self.sas_model_decoder = sas_model_decoder
         self.sas_param_decoder = sas_param_decoder
-        self.embedding = nn.Linear(encoder.input_dim, encoder.latent_dim)
-        torch.nn.init.kaiming_normal_(self.embedding.weight)
+        self.embedding = nn.Embedding(
+            num_embeddings=n_bins, embedding_dim=encoder.latent_dim)
         self.pe = PositionalEncoding(encoder.latent_dim)
 
     def forward(
@@ -99,7 +100,7 @@ class SASPerceiverIO(nn.Module):
         Returns:
             Output tensor.
         """
-        input_embedding = self.embedding(inputs)
+        input_embedding = self.embedding(inputs).squeeze()
         input_emb_and_pos = self.pe(input_embedding)
         latents = self.encoder(input_emb_and_pos, kv_mask=input_mask)
         clf_outputs = self.sas_model_decoder(

@@ -6,6 +6,7 @@ import pandas as pd
 from dataclasses import dataclass
 from typing import Tuple, Optional
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import KBinsDiscretizer
 
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
@@ -76,12 +77,18 @@ class RegressionScaler:
 
 
 class SASDataset:
-    def __init__(self, df: pd.DataFrame, noise: bool = False, noise_scale: float = 0.01, x_scaler: IqScaler = None, y_scaler: RegressionScaler = None):
+    def __init__(self, df: pd.DataFrame,
+                 noise: bool = False,
+                 noise_scale: float = 0.01,
+                 x_scaler: IqScaler = None,
+                 y_scaler: RegressionScaler = None,
+                 discretizer: KBinsDiscretizer = None):
         self.df = df.reset_index(drop=True)
         self.noise = noise
         self.noise_scale = noise_scale
         self.x_scaler = x_scaler
         self.y_scaler = y_scaler
+        self.discretizer = discretizer
 
         data_columns = [x for x in df.columns if x.startswith('I(q')]
         reg_target_columns = [x for x in df.columns if x.startswith('reg')]
@@ -105,11 +112,14 @@ class SASDataset:
             # scale I_q
             I_q = (I_q - self.x_scaler.mean) / self.x_scaler.std
 
+        I_q = self.discretizer.transform(np.reshape(I_q, (-1, 1)))
+        I_q = np.reshape(I_q, (-1, self.I_q.shape[-1]))
+
         if self.y_scaler is not None:
             reg_targets = (reg_targets - self.y_scaler.mean) / \
                 self.y_scaler.std
 
-        return torch.Tensor(I_q), self.clf_labels[idx], torch.Tensor(reg_targets)
+        return torch.LongTensor(I_q), self.clf_labels[idx], torch.Tensor(reg_targets)
 
 
 def log_relevant_regression_targets(df: pd.DataFrame, data_dir: str) -> pd.DataFrame:
@@ -130,44 +140,59 @@ def log_relevant_regression_targets(df: pd.DataFrame, data_dir: str) -> pd.DataF
     return df
 
 
-def get_scalers(df_train: pd.DataFrame) -> Tuple[IqScaler, RegressionScaler]:
+def get_preprocessors(df_train: pd.DataFrame, n_bins) -> Tuple[IqScaler, RegressionScaler, KBinsDiscretizer]:
     data_columns = [x for x in df_train.columns if x.startswith('I(q')]
     reg_target_columns = [x for x in df_train.columns if x.startswith('reg')]
 
+    # I_q scaler
     I_q_train_transformed = np.log10(
         df_train[data_columns].values**2)  # just for scaler
     I_q_mean = I_q_train_transformed.mean()  # global
     I_q_std = I_q_train_transformed.std()  # global
     Iq_scaler = IqScaler(mean=I_q_mean, std=I_q_std)
+
+    # I_q discretizer
+    I_q_train_transformed = (I_q_train_transformed - I_q_mean) / I_q_std
+    discretizer = KBinsDiscretizer(
+        n_bins, encode='ordinal', strategy='uniform')
+    discretizer.fit(np.reshape(I_q_train_transformed, (-1, 1)))
+
     del I_q_train_transformed
 
+    # regression target scaler
     reg_mean = np.nanmean(
         df_train[reg_target_columns].values, axis=0)  # feature-wise
     reg_std = np.nanstd(
         df_train[reg_target_columns].values, axis=0)  # feature-wise
     reg_target_scaler = RegressionScaler(mean=reg_mean, std=reg_std)
-    return Iq_scaler, reg_target_scaler
+    return Iq_scaler, reg_target_scaler, discretizer
 
 
 class SASDataModule(pl.LightningDataModule):
-    def __init__(self, data_dir: str, sub_dir: str, batch_size: int, val_size: float = 0.0, seed: int = None):
+    def __init__(self,
+                 data_dir: str,
+                 sub_dir: str,
+                 batch_size: int,
+                 val_size: float = 0.0,
+                 n_bins: int = 512,
+                 seed: int = None):
         super().__init__()
         self.data_dir = data_dir
         self.sub_dir = sub_dir
         self.batch_size = batch_size
         self.val_size = val_size
+        self.n_bins = n_bins
         self.seed = seed
         self.num_clf = None
         self.num_reg = None
         self.Iq_scaler = None
         self.reg_target_scaler = None
-        # self.setup_done = False
+        self.discretizer = None
 
     def setup(self, stage: Optional[str] = None):
-        # if not self.setup_done:
         train = pd.read_parquet(os.path.join(
             self.data_dir, self.sub_dir, 'train.parquet'))
-        # train = train.sample(n=8192)  # for debugging REMOVE THIS LATER
+        train = train.sample(n=4096, random_state=256)  # debug REMOVE LATER
         test = pd.read_parquet(os.path.join(
             self.data_dir, self.sub_dir, 'test.parquet'))
 
@@ -183,28 +208,28 @@ class SASDataModule(pl.LightningDataModule):
                                           random_state=self.seed)
 
         # calculate input and output scalers
-        Iq_scaler, reg_target_scaler = get_scalers(train)
+        Iq_scaler, reg_target_scaler, discretizer = get_preprocessors(
+            train, self.n_bins)
         self.Iq_scaler = Iq_scaler
         self.reg_target_scaler = reg_target_scaler
+        self.discretizer = discretizer
 
         # PyTorch dataset classes
         self.train_dataset = SASDataset(
-            train, noise=False, x_scaler=Iq_scaler, y_scaler=reg_target_scaler)
+            train, noise=False, x_scaler=Iq_scaler, y_scaler=reg_target_scaler, discretizer=discretizer)
 
         if self.val_size > 0.0:
             self.val_dataset = SASDataset(
-                val, noise=False, x_scaler=Iq_scaler, y_scaler=reg_target_scaler)
+                val, noise=False, x_scaler=Iq_scaler, y_scaler=reg_target_scaler, discretizer=discretizer)
 
         self.test_dataset = SASDataset(
-            test, noise=False, x_scaler=Iq_scaler, y_scaler=reg_target_scaler)
-
-        # self.setup_done = True
+            test, noise=False, x_scaler=Iq_scaler, y_scaler=reg_target_scaler, discretizer=discretizer)
 
     def train_dataloader(self):
         return DataLoader(self.train_dataset, batch_size=self.batch_size)
 
     def val_dataloader(self):
-        return DataLoader(self.val_dataset, batch_size=self.batch_size)
+        return DataLoader(self.val_dataset, batch_size=self.batch_size) if self.val_size > 0.0 else None
 
     def test_dataloader(self):
         return DataLoader(self.test_dataset, batch_size=self.batch_size)

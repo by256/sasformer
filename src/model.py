@@ -4,6 +4,7 @@ import torch.nn.functional as F
 import pytorch_lightning as pl
 from torchmetrics.functional import accuracy
 from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
+from sklearn.preprocessing import KBinsDiscretizer
 
 from data import IqScaler, RegressionScaler
 from perceiver_io import PerceiverEncoder, PerceiverDecoder, SASPerceiverIO, TaskDecoder
@@ -46,16 +47,19 @@ class SASPerceiverIOModel(pl.LightningModule):
                  lr: float = 5e-4,
                  batch_size: int = 256,
                  weight_decay: float = 1e-8,
+                 n_bins: int = 640,
                  clf_weight: float = 1.0,
                  reg_weight: float = 1.0,
                  x_scaler: IqScaler = None,
-                 y_scaler: RegressionScaler = None):
+                 y_scaler: RegressionScaler = None,
+                 discretizer: KBinsDiscretizer = None):
         super().__init__()
         self.clf_weight = clf_weight
         self.reg_weight = reg_weight
-        # scalers only for inference
+        # scalers/preprocessors only for inference
         self.x_scaler = x_scaler
         self.y_scaler = y_scaler
+        self.discretizer = discretizer
         # metrics
         self.num_classes = num_classes
         self.save_hyperparameters(ignore=['model'])
@@ -88,7 +92,7 @@ class SASPerceiverIOModel(pl.LightningModule):
                                              dropout=param_dec_dropout,
                                              attention_dropout=param_dec_attn_dropout)
         self.perceiver = SASPerceiverIO(
-            self.encoder, self.sas_model_decoder, self.sas_param_decoder)
+            self.encoder, self.sas_model_decoder, self.sas_param_decoder, n_bins)
 
     def forward(self, x):
         return self.perceiver(x)
@@ -119,29 +123,37 @@ class SASPerceiverIOModel(pl.LightningModule):
 
         self.log_losses_and_metrics(clf_loss, reg_loss, acc, mode='val')
 
+    def test_step(self, batch, batch_idx):
+        x, y_clf_true, y_reg_true = batch
+        y_clf_pred, y_reg_pred = self(x)
+        clf_loss = F.cross_entropy(y_clf_pred, y_clf_true)
+        reg_loss = multitask_l1(y_reg_pred, y_reg_true)
+        acc = accuracy(torch.argmax(y_clf_pred, dim=1),
+                       y_clf_true, num_classes=self.num_classes)
+
+        self.log_losses_and_metrics(clf_loss, reg_loss, acc, mode='test')
+
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(),
                                      lr=self.hparams.lr,
                                      weight_decay=self.hparams.weight_decay)
         lr_scheduler = LinearWarmupCosineAnnealingLR(optimizer,
-                                                     #  warmup_epochs=25,
-                                                     #  max_epochs=500,
                                                      warmup_epochs=int(
                                                          0.05*self.trainer.max_epochs),
-                                                     max_epochs=self.trainer.max_epochs
-                                                     )
+                                                     max_epochs=self.trainer.max_epochs,
+                                                     eta_min=1e-7)
         return {'optimizer': optimizer,
                 'lr_scheduler': {'scheduler': lr_scheduler}}
 
     def log_losses_and_metrics(self, clf_loss, reg_loss, acc, lr=None, mode='train'):
         self.log(f'{mode}/clf_loss', self.clf_weight*clf_loss,
-                 on_step=False, on_epoch=True, sync_dist=True)
+                 on_epoch=True, on_step=False, sync_dist=True)
         self.log(f'{mode}/reg_loss', self.reg_weight*reg_loss,
-                 on_step=False, on_epoch=True, sync_dist=True)
-        self.log(f'{mode}/accuracy', acc, on_step=False,
-                 on_epoch=True)  # torchmetrics doesn't need sync_dist
-        self.log(f'{mode}/mae', reg_loss, on_step=False,
-                 on_epoch=True, sync_dist=True)
+                 on_epoch=True, on_step=False, sync_dist=True)
+        self.log(f'{mode}/accuracy', acc,
+                 on_epoch=True, on_step=False, prog_bar=True)  # torchmetrics doesn't need sync_dist
+        self.log(f'{mode}/mae', reg_loss,
+                 on_epoch=True, on_step=False, prog_bar=True, sync_dist=True)
         if lr is not None and mode == 'train':
-            self.log('trainer/lr', lr, on_step=False,
-                     on_epoch=True, rank_zero_only=True)
+            self.log('trainer/lr', lr, on_epoch=True,
+                     on_step=False, rank_zero_only=True)

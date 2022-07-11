@@ -32,7 +32,8 @@ def load_hparams_from_yaml(path):
                       'wandb_version',
                       '_wandb',
                       'x_scaler',
-                      'y_scaler']
+                      'y_scaler',
+                      'discretizer']
     with open(path, 'r') as stream:
         params = yaml.safe_load(stream)
     # remove unwanted keys
@@ -67,6 +68,7 @@ def load_hparams_from_namespace(namespace):
                'lr': namespace.lr,
                'batch_size': batch_size,
                'weight_decay': namespace.weight_decay,
+               'n_bins': namespace.n_bins,
                'clf_weight': namespace.clf_weight,
                'reg_weight': namespace.reg_weight}
     return hparams
@@ -86,7 +88,7 @@ if __name__ == '__main__':
                         help='Logging directory for Tensorboard', metavar='log_dir')
     parser.add_argument('--from_yaml', default=None, type=str,
                         help='path to hparams yaml file.', metavar='from_yaml')
-    parser.add_argument('--disable_logger', default=False, type=bool,
+    parser.add_argument('--disable_logger', default=0, type=int,
                         help='disable logger for debugging.', metavar='disable_logger')
     # encoder args
     parser.add_argument('--latent_dim', default=256,
@@ -130,6 +132,8 @@ if __name__ == '__main__':
     parser.add_argument('--param_dec_attn_dropout', default=0.2,
                         type=float, metavar='param_dec_attn_dropout')
     # lightning model args
+    parser.add_argument('--n_bins', default=640,
+                        type=int, help='n bins for input discretization.', metavar='n_bins')
     parser.add_argument('--clf_weight', default=1.0,
                         type=float, metavar='clf_weight')
     parser.add_argument('--reg_weight', default=0.05,
@@ -137,8 +141,8 @@ if __name__ == '__main__':
     # lightning trainer args
     parser.add_argument('--batch_size', default=1024,
                         type=int, metavar='batch_size')
-    parser.add_argument('--batch_size_auto', default=False,
-                        type=bool, metavar='batch_size_auto')
+    parser.add_argument('--batch_size_auto', default=0,
+                        type=int, metavar='batch_size_auto')
     parser.add_argument('--lr', default=5e-4, type=float, metavar='lr')
     parser.add_argument('--weight_decay', default=1e-8,
                         type=float, metavar='weight_decay')
@@ -149,14 +153,14 @@ if __name__ == '__main__':
     parser.add_argument('--ckpt_path', default=None, type=str,
                         help='Checkpoint path to resume training', metavar='ckpt_path')
     parser.add_argument('--gpus', default=1, type=int, metavar='gpus')
-    parser.add_argument('--accumulate_grad_batches', default=1,
+    parser.add_argument('--accumulate_grad_batches', default=None,
                         type=int, metavar='accumulate_grad_batches')
     parser.add_argument('--overfit_batches', default=0,
                         type=int, metavar='overfit_batches')
-    parser.add_argument('--detect_anomaly', default=True,
-                        type=bool, metavar='detect_anomaly')
-    parser.add_argument('--deterministic', default=True,
-                        type=bool, metavar='deterministic')
+    parser.add_argument('--detect_anomaly', default=1,
+                        type=int, metavar='detect_anomaly')
+    parser.add_argument('--deterministic', default=1,
+                        type=int, metavar='deterministic')
     parser.add_argument('--strategy', default=None, type=str,
                         help='Set to `ddp` for cluster training', metavar='strategy')
     parser.add_argument('--num_nodes', default=1, type=int,
@@ -175,6 +179,7 @@ if __name__ == '__main__':
     datamodule = SASDataModule(data_dir=data_dir,
                                sub_dir=namespace.sub_dir,
                                batch_size=batch_size,
+                               n_bins=namespace.n_bins,
                                val_size=namespace.val_size,
                                seed=namespace.seed)
     datamodule.setup()  # needed to initialze num_reg, num_clf and scalers
@@ -190,10 +195,12 @@ if __name__ == '__main__':
 
     if namespace.from_yaml is not None:
         params = load_hparams_from_yaml(namespace.from_yaml)
+        params['n_bins'] = namespace.n_bins  # REMOVE LATER
     else:
         params = load_hparams_from_namespace(namespace)
     params['x_scaler'] = datamodule.Iq_scaler
     params['y_scaler'] = datamodule.reg_target_scaler
+    params['discretizer'] = datamodule.discretizer
 
     model = SASPerceiverIOModel(datamodule.num_clf,
                                 datamodule.num_reg,
@@ -211,7 +218,8 @@ if __name__ == '__main__':
 
     strategy = DDPStrategy(
         find_unused_parameters=False) if namespace.strategy == 'ddp' else namespace.strategy
-    ckpt_callback = ModelCheckpoint(every_n_epochs=1)
+    ckpt_callback = ModelCheckpoint(every_n_epochs=25)
+    log_every_n_steps = len(datamodule.train_dataset) // params['batch_size']
     trainer = pl.Trainer(gpus=namespace.gpus,
                          max_epochs=namespace.max_epochs,
                          gradient_clip_val=namespace.gradient_clip_val,
@@ -224,6 +232,7 @@ if __name__ == '__main__':
                          strategy=strategy,
                          num_nodes=namespace.num_nodes,
                          detect_anomaly=namespace.detect_anomaly,
+                         log_every_n_steps=log_every_n_steps,
                          flush_logs_every_n_steps=1e12  # this prevents training from freezing at 100 steps
                          )
 
