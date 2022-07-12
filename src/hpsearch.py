@@ -86,7 +86,7 @@ def objective(trial, namespace, root_dir, data_dir):
 
     strategy = DDPStrategy(
         find_unused_parameters=False) if namespace.strategy == 'ddp' else namespace.strategy
-    early_stopping = EarlyStopping(monitor='val/total_loss', patience=10)
+    early_stopping = EarlyStopping(monitor='val/total_loss', patience=20)
     trainer = pl.Trainer(gpus=namespace.gpus,
                          max_epochs=namespace.max_epochs,
                          gradient_clip_val=namespace.gradient_clip_val,
