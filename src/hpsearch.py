@@ -11,6 +11,7 @@ import pytorch_lightning as pl
 from pytorch_lightning.tuner.tuning import Tuner
 from pytorch_lightning.strategies import DDPStrategy
 from pytorch_lightning.loggers.wandb import WandbLogger
+from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 
 from data import SASDataModule
 from train import estimate_batch_size
@@ -26,9 +27,10 @@ def clear_cache():
 def objective(trial, namespace, root_dir, data_dir):
     dropout = trial.suggest_float(
         'dropout', 0.0, 0.5, step=0.05)
-    params_i = {'lr': trial.suggest_loguniform('lr', 1e-5, 1e-3),
+    params_i = {'lr': trial.suggest_loguniform('lr', 1e-5, 1e-1),
                 'batch_size': 2,   # placeholder
-                'latent_dim': trial.suggest_categorical('latent_dim', [32, 64, 128, 256]),
+                # trial.suggest_categorical('latent_dim', [32, 64, 128, 256]),
+                'latent_dim': 256,
                 # encoder args
                 'enc_num_self_attn_per_block': trial.suggest_int('enc_num_self_attn_per_block', 2, 4),
                 'enc_num_cross_attn_heads': trial.suggest_categorical('enc_num_cross_attn_heads', [1, 2, 4]),
@@ -51,7 +53,7 @@ def objective(trial, namespace, root_dir, data_dir):
                 'param_dec_dropout': trial.suggest_float('param_dec_dropout', 0.1, 0.5, step=0.05),
                 # loss args
                 'clf_weight': 1.0,
-                'reg_weight': trial.suggest_loguniform('reg_weight', 1e-3, 1e1),
+                'reg_weight': 1.0
                 }
 
     datamodule = SASDataModule(data_dir=data_dir,
@@ -65,6 +67,7 @@ def objective(trial, namespace, root_dir, data_dir):
                                 datamodule.num_reg,
                                 x_scaler=datamodule.Iq_scaler,
                                 y_scaler=datamodule.reg_target_scaler,
+                                discretizer=datamodule.discretizer,
                                 **params_i)
 
     batch_size = estimate_batch_size(model, datamodule)
@@ -83,11 +86,13 @@ def objective(trial, namespace, root_dir, data_dir):
 
     strategy = DDPStrategy(
         find_unused_parameters=False) if namespace.strategy == 'ddp' else namespace.strategy
+    early_stopping = EarlyStopping(monitor='val/total_loss', patience=10)
     trainer = pl.Trainer(gpus=namespace.gpus,
                          max_epochs=namespace.max_epochs,
                          gradient_clip_val=namespace.gradient_clip_val,
                          logger=logger,
-                         precision=16,
+                         precision=32,
+                         callbacks=[early_stopping],
                          accumulate_grad_batches=namespace.accumulate_grad_batches,
                          strategy=strategy,
                          num_nodes=namespace.num_nodes,
@@ -131,7 +136,7 @@ if __name__ == '__main__':
                         help='Set to `ddp` for cluster training', metavar='strategy')
     parser.add_argument('--num_nodes', default=1, type=int,
                         help='N nodes for distributed training.', metavar='num_nodes')
-    parser.add_argument('--resume', default=False, type=bool,
+    parser.add_argument('--resume', default=0, type=int,
                         help='Resume search from checkpoint if it exists.', metavar='resume')
     parser.add_argument('--seed', default=None, type=int,
                         help='Random seed.', metavar='seed')

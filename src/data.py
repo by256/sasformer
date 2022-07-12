@@ -192,7 +192,7 @@ class SASDataModule(pl.LightningDataModule):
     def setup(self, stage: Optional[str] = None):
         train = pd.read_parquet(os.path.join(
             self.data_dir, self.sub_dir, 'train.parquet'))
-        train = train.sample(n=4096, random_state=256)  # debug REMOVE LATER
+        # train = train.sample(n=4096, random_state=256)  # debug REMOVE LATER
         test = pd.read_parquet(os.path.join(
             self.data_dir, self.sub_dir, 'test.parquet'))
 

@@ -138,14 +138,19 @@ class SASPerceiverIOModel(pl.LightningModule):
                                      lr=self.hparams.lr,
                                      weight_decay=self.hparams.weight_decay)
         lr_scheduler = LinearWarmupCosineAnnealingLR(optimizer,
-                                                     warmup_epochs=int(
-                                                         0.05*self.trainer.max_epochs),
-                                                     max_epochs=self.trainer.max_epochs,
+                                                     warmup_epochs=25,
+                                                     max_epochs=500,
+                                                     #  warmup_epochs=int(
+                                                     #      0.05*self.trainer.max_epochs),
+                                                     #  max_epochs=self.trainer.max_epochs,
                                                      eta_min=1e-7)
         return {'optimizer': optimizer,
                 'lr_scheduler': {'scheduler': lr_scheduler}}
 
     def log_losses_and_metrics(self, clf_loss, reg_loss, acc, lr=None, mode='train'):
+        total_loss = self.reg_weight*reg_loss+self.clf_weight*clf_loss
+        self.log(f'{mode}/total_loss', total_loss,
+                 on_epoch=True, on_step=False, sync_dist=True)
         self.log(f'{mode}/clf_loss', self.clf_weight*clf_loss,
                  on_epoch=True, on_step=False, sync_dist=True)
         self.log(f'{mode}/reg_loss', self.reg_weight*reg_loss,
