@@ -46,7 +46,8 @@ def load_hparams_from_yaml(path):
 
 
 def load_hparams_from_namespace(namespace):
-    hparams = {'latent_dim': namespace.latent_dim,
+    hparams = {'num_latents': namespace.num_latents,
+               'latent_dim': namespace.latent_dim,
                'enc_num_self_attn_per_block': namespace.enc_num_self_attn_per_block,
                'enc_num_cross_attn_heads': namespace.enc_num_cross_attn_heads,
                'enc_num_self_attn_heads': namespace.enc_num_self_attn_heads,
@@ -91,6 +92,8 @@ if __name__ == '__main__':
     parser.add_argument('--disable_logger', default=0, type=int,
                         help='disable logger for debugging.', metavar='disable_logger')
     # encoder args
+    parser.add_argument('--num_latents', default=64,
+                        type=int, metavar='num_latents')
     parser.add_argument('--latent_dim', default=256,
                         type=int, metavar='latent_dim')
     parser.add_argument('--enc_num_self_attn_per_block', default=4,
@@ -103,11 +106,11 @@ if __name__ == '__main__':
                         type=int, metavar='enc_cross_attn_widening_factor')
     parser.add_argument('--enc_self_attn_widening_factor', default=1,
                         type=int, metavar='enc_self_attn_widening_factor')
-    parser.add_argument('--enc_dropout', default=0.1,
+    parser.add_argument('--enc_dropout', default=0.2,
                         type=float, metavar='enc_dropout')
-    parser.add_argument('--enc_cross_attention_dropout', default=0.1,
+    parser.add_argument('--enc_cross_attention_dropout', default=0.2,
                         type=float, metavar='enc_cross_attention_dropout')
-    parser.add_argument('--enc_self_attention_dropout', default=0.1,
+    parser.add_argument('--enc_self_attention_dropout', default=0.2,
                         type=float, metavar='enc_self_attention_dropout')
     # model (clf) decoder args
     parser.add_argument('--model_dec_widening_factor', default=1,
@@ -116,9 +119,9 @@ if __name__ == '__main__':
                         type=int, metavar='model_decoder_num_heads')
     parser.add_argument('--model_dec_qk_out_dim', default=64,
                         type=int, metavar='model_dec_qk_out_dim')
-    parser.add_argument('--model_dec_dropout', default=0.1,
+    parser.add_argument('--model_dec_dropout', default=0.2,
                         type=float, metavar='model_dec_dropout')
-    parser.add_argument('--model_dec_attn_dropout', default=0.1,
+    parser.add_argument('--model_dec_attn_dropout', default=0.2,
                         type=float, metavar='model_dec_attn_dropout')
     # param (reg) decoder args
     parser.add_argument('--param_dec_widening_factor', default=1,
@@ -143,7 +146,7 @@ if __name__ == '__main__':
                         type=int, metavar='batch_size')
     parser.add_argument('--batch_size_auto', default=0,
                         type=int, metavar='batch_size_auto')
-    parser.add_argument('--lr', default=5e-4, type=float, metavar='lr')
+    parser.add_argument('--lr', default=2e-3, type=float, metavar='lr')
     parser.add_argument('--weight_decay', default=1e-8,
                         type=float, metavar='weight_decay')
     parser.add_argument('--max_epochs', default=500,
@@ -168,6 +171,9 @@ if __name__ == '__main__':
     parser.add_argument('--seed', default=None, type=int,
                         help='Random seed.', metavar='seed')
     namespace = parser.parse_args()
+
+    if namespace.seed is not None:
+        pl.seed_everything(namespace.seed, workers=True)
 
     # define paths
     root_dir = os.path.dirname(os.path.abspath(__file__))

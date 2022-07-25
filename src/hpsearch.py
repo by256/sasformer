@@ -25,29 +25,29 @@ def clear_cache():
 
 
 def objective(trial, namespace, root_dir, data_dir):
-    dropout = trial.suggest_float(
-        'dropout', 0.0, 0.5, step=0.05)
+    dropout = trial.suggest_float('dropout', 0.0, 0.5, step=0.05)
     params_i = {'lr': trial.suggest_loguniform('lr', 1e-5, 1e-1),
                 'batch_size': 2,   # placeholder
                 # trial.suggest_categorical('latent_dim', [32, 64, 128, 256]),
+                'num_latents': trial.suggest_categorical('num_latents', [32, 64, 128]),
                 'latent_dim': 256,
                 # encoder args
-                'enc_num_self_attn_per_block': trial.suggest_int('enc_num_self_attn_per_block', 2, 4),
+                'enc_num_self_attn_per_block': trial.suggest_int('enc_num_self_attn_per_block', 2, 6),
                 'enc_num_cross_attn_heads': trial.suggest_categorical('enc_num_cross_attn_heads', [1, 2, 4]),
                 'enc_num_self_attn_heads': trial.suggest_categorical('enc_num_self_attn_heads', [1, 2, 4]),
-                'enc_cross_attn_widening_factor': trial.suggest_int('enc_cross_attn_widening_factor', 1, 2),
-                'enc_self_attn_widening_factor': trial.suggest_int('enc_self_attn_widening_factor', 1, 2),
+                'enc_cross_attn_widening_factor': trial.suggest_int('enc_cross_attn_widening_factor', 1, 3),
+                'enc_self_attn_widening_factor': trial.suggest_int('enc_self_attn_widening_factor', 1, 3),
                 'enc_dropout': dropout,
                 'enc_cross_attention_dropout': dropout,
                 'enc_self_attention_dropout': dropout,
                 # model decoder args
-                'model_dec_widening_factor': trial.suggest_int('model_dec_widening_factor', 1, 2),
+                'model_dec_widening_factor': trial.suggest_int('model_dec_widening_factor', 1, 3),
                 'model_dec_num_heads': trial.suggest_categorical('model_dec_num_heads', [1, 2, 4]),
                 'model_dec_qk_out_dim': 64,
                 'model_dec_dropout': dropout,
                 'model_dec_attn_dropout': dropout,
                 # param decoder args
-                'param_dec_widening_factor': trial.suggest_int('param_dec_widening_factor', 1, 2),
+                'param_dec_widening_factor': trial.suggest_int('param_dec_widening_factor', 1, 3),
                 'param_dec_num_heads': trial.suggest_categorical('param_dec_num_heads', [1, 2, 4, 8]),
                 'param_dec_qk_out_dim': 256,
                 'param_dec_dropout': trial.suggest_float('param_dec_dropout', 0.1, 0.5, step=0.05),

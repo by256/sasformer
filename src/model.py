@@ -26,6 +26,7 @@ class SASPerceiverIOModel(pl.LightningModule):
                  num_classes: int,
                  num_reg_outputs: int,
                  latent_dim: int = 256,
+                 num_latents: int = 256,
                  enc_num_self_attn_per_block: int = 4,
                  enc_num_cross_attn_heads: int = 1,
                  enc_num_self_attn_heads: int = 2,
@@ -64,7 +65,7 @@ class SASPerceiverIOModel(pl.LightningModule):
         self.num_classes = num_classes
         self.save_hyperparameters(ignore=['model'])
         # encoder
-        self.encoder = PerceiverEncoder(num_latents=latent_dim,
+        self.encoder = PerceiverEncoder(num_latents=num_latents,
                                         latent_dim=latent_dim,
                                         input_dim=1,
                                         num_self_attn_per_block=enc_num_self_attn_per_block,
