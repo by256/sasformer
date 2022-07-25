@@ -67,7 +67,7 @@ class PerceiverEncoder(nn.Module):
         self.latents = nn.Parameter(torch.randn(num_latents, latent_dim))
 
         self.cross_attn = CrossAttention(
-            kv_dim=latent_dim*2,
+            kv_dim=latent_dim,
             q_dim=latent_dim,
             widening_factor=cross_attn_widening_factor,
             num_heads=num_cross_attn_heads,

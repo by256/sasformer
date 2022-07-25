@@ -132,7 +132,7 @@ if __name__ == '__main__':
     parser.add_argument('--param_dec_attn_dropout', default=0.2,
                         type=float, metavar='param_dec_attn_dropout')
     # lightning model args
-    parser.add_argument('--n_bins', default=640,
+    parser.add_argument('--n_bins', default=256,
                         type=int, help='n bins for input discretization.', metavar='n_bins')
     parser.add_argument('--clf_weight', default=1.0,
                         type=float, metavar='clf_weight')
@@ -228,10 +228,10 @@ if __name__ == '__main__':
                          callbacks=[ckpt_callback],
                          accumulate_grad_batches=namespace.accumulate_grad_batches,
                          overfit_batches=namespace.overfit_batches,
-                         deterministic=namespace.deterministic,
+                         deterministic=bool(namespace.deterministic),
                          strategy=strategy,
                          num_nodes=namespace.num_nodes,
-                         detect_anomaly=namespace.detect_anomaly,
+                         detect_anomaly=bool(namespace.detect_anomaly),
                          log_every_n_steps=log_every_n_steps,
                          flush_logs_every_n_steps=1e12  # this prevents training from freezing at 100 steps
                          )

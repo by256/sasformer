@@ -174,7 +174,7 @@ class SASDataModule(pl.LightningDataModule):
                  sub_dir: str,
                  batch_size: int,
                  val_size: float = 0.0,
-                 n_bins: int = 512,
+                 n_bins: int = 256,
                  seed: int = None):
         super().__init__()
         self.data_dir = data_dir
@@ -192,7 +192,7 @@ class SASDataModule(pl.LightningDataModule):
     def setup(self, stage: Optional[str] = None):
         train = pd.read_parquet(os.path.join(
             self.data_dir, self.sub_dir, 'train.parquet'))
-        # train = train.sample(n=4096, random_state=256)  # debug REMOVE LATER
+        train = train.sample(n=4096, random_state=256)  # debug REMOVE LATER
         test = pd.read_parquet(os.path.join(
             self.data_dir, self.sub_dir, 'test.parquet'))
 
@@ -226,7 +226,7 @@ class SASDataModule(pl.LightningDataModule):
             test, noise=False, x_scaler=Iq_scaler, y_scaler=reg_target_scaler, discretizer=discretizer)
 
     def train_dataloader(self):
-        return DataLoader(self.train_dataset, batch_size=self.batch_size)
+        return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True)
 
     def val_dataloader(self):
         return DataLoader(self.val_dataset, batch_size=self.batch_size) if self.val_size > 0.0 else None

@@ -47,7 +47,7 @@ class SASPerceiverIOModel(pl.LightningModule):
                  lr: float = 5e-4,
                  batch_size: int = 256,
                  weight_decay: float = 1e-8,
-                 n_bins: int = 640,
+                 n_bins: int = 256,
                  clf_weight: float = 1.0,
                  reg_weight: float = 1.0,
                  x_scaler: IqScaler = None,
