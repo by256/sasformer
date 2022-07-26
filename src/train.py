@@ -139,7 +139,7 @@ if __name__ == '__main__':
                         type=int, help='n bins for input discretization.', metavar='n_bins')
     parser.add_argument('--clf_weight', default=1.0,
                         type=float, metavar='clf_weight')
-    parser.add_argument('--reg_weight', default=0.05,
+    parser.add_argument('--reg_weight', default=1.0,
                         type=float, metavar='reg_weight')
     # lightning trainer args
     parser.add_argument('--batch_size', default=1024,

@@ -26,9 +26,10 @@ def clear_cache():
 
 def objective(trial, namespace, root_dir, data_dir):
     dropout = trial.suggest_float('dropout', 0.0, 0.5, step=0.05)
-    params_i = {'lr': trial.suggest_loguniform('lr', 1e-5, 1e-1),
+    params_i = {'lr': 2e-3,
+                # 'lr': trial.suggest_loguniform('lr', 1e-5, 1e-1),
                 'batch_size': 2,   # placeholder
-                # trial.suggest_categorical('latent_dim', [32, 64, 128, 256]),
+                # 'batch_size': trial.suggest_categorical('latent_dim', [32, 64, 128, 256]),
                 'num_latents': trial.suggest_categorical('num_latents', [32, 64, 128]),
                 'latent_dim': 256,
                 # encoder args
@@ -141,6 +142,9 @@ if __name__ == '__main__':
     parser.add_argument('--seed', default=None, type=int,
                         help='Random seed.', metavar='seed')
     namespace = parser.parse_args()
+
+    if namespace.seed is not None:
+        pl.seed_everything(namespace.seed, workers=True)
 
     # define paths
     root_dir = os.path.dirname(os.path.abspath(__file__))

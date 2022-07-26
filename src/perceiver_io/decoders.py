@@ -152,7 +152,6 @@ class TaskDecoder(BasePerceiverDecoder):
             num_heads=num_heads,
             qk_out_dim=qk_out_dim,
             v_out_dim=v_out_dim,
-            # head_dim=head_dim,
             projection_dim=projection_dim,
             use_query_residual=True,
             dropout=dropout,
