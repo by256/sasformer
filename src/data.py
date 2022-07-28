@@ -69,7 +69,7 @@ def quotient_transform(x):
 
 @dataclass
 class IqScaler:
-    """dataclass for storing mean and std of log(I(q)**2)"""
+    """dataclass for storing mean and std of log10(I(q+1)/I(q)"""
     mean: str
     std: float
 
@@ -202,7 +202,7 @@ class SASDataModule(pl.LightningDataModule):
     def setup(self, stage: Optional[str] = None):
         train = pd.read_parquet(os.path.join(
             self.data_dir, self.sub_dir, 'train.parquet'))
-        train = train.sample(n=4096, random_state=256)  # debug REMOVE LATER
+        # train = train.sample(n=4096, random_state=256)  # debug REMOVE LATER
         test = pd.read_parquet(os.path.join(
             self.data_dir, self.sub_dir, 'test.parquet'))
 
