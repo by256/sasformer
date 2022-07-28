@@ -30,7 +30,7 @@ def objective(trial, namespace, root_dir, data_dir):
                 # 'lr': trial.suggest_loguniform('lr', 1e-5, 1e-1),
                 'batch_size': 2,   # placeholder
                 # 'batch_size': trial.suggest_categorical('latent_dim', [32, 64, 128, 256]),
-                'num_latents': trial.suggest_categorical('num_latents', [32, 64, 128]),
+                'num_latents': trial.suggest_categorical('num_latents', [64, 128]),
                 'latent_dim': 256,
                 # encoder args
                 'enc_num_self_attn_per_block': trial.suggest_int('enc_num_self_attn_per_block', 2, 6),

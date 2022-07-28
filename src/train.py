@@ -226,21 +226,22 @@ if __name__ == '__main__':
         find_unused_parameters=False) if namespace.strategy == 'ddp' else namespace.strategy
     ckpt_callback = ModelCheckpoint(every_n_epochs=25)
     log_every_n_steps = len(datamodule.train_dataset) // params['batch_size']
-    trainer = pl.Trainer(gpus=namespace.gpus,
-                         max_epochs=namespace.max_epochs,
-                         gradient_clip_val=namespace.gradient_clip_val,
-                         logger=logger,
-                         precision=32,
-                         callbacks=[ckpt_callback],
-                         accumulate_grad_batches=namespace.accumulate_grad_batches,
-                         overfit_batches=namespace.overfit_batches,
-                         deterministic=bool(namespace.deterministic),
-                         strategy=strategy,
-                         num_nodes=namespace.num_nodes,
-                         detect_anomaly=bool(namespace.detect_anomaly),
-                         log_every_n_steps=log_every_n_steps,
-                         flush_logs_every_n_steps=1e12  # this prevents training from freezing at 100 steps
-                         )
+    trainer = pl.Trainer(
+        gpus=namespace.gpus,
+        max_epochs=namespace.max_epochs,
+        gradient_clip_val=namespace.gradient_clip_val,
+        logger=logger,
+        precision=32,
+        callbacks=[ckpt_callback],
+        accumulate_grad_batches=namespace.accumulate_grad_batches,
+        overfit_batches=namespace.overfit_batches,
+        deterministic=bool(namespace.deterministic),
+        strategy=strategy,
+        num_nodes=namespace.num_nodes,
+        detect_anomaly=bool(namespace.detect_anomaly),
+        log_every_n_steps=log_every_n_steps,
+        flush_logs_every_n_steps=1e12  # this prevents training from freezing at 100 steps
+    )
 
     trainer.fit(model,
                 datamodule=datamodule,
