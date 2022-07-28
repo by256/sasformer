@@ -134,6 +134,9 @@ if __name__ == '__main__':
                         type=float, metavar='param_dec_dropout')
     parser.add_argument('--param_dec_attn_dropout', default=0.2,
                         type=float, metavar='param_dec_attn_dropout')
+    # datamodule args
+    parser.add_argument('--subsample', default=None,
+                        type=int, help='Subsample data (for debugging)', metavar='subsample')
     # lightning model args
     parser.add_argument('--n_bins', default=256,
                         type=int, help='n bins for input discretization.', metavar='n_bins')
@@ -187,6 +190,7 @@ if __name__ == '__main__':
                                batch_size=batch_size,
                                n_bins=namespace.n_bins,
                                val_size=namespace.val_size,
+                               subsample=namespace.subsample,
                                seed=namespace.seed)
     datamodule.setup()  # needed to initialze num_reg, num_clf and scalers
 
