@@ -19,7 +19,7 @@ def raw_data_to_df(data_dir: str, sub_dir: str = 'large', step: int = 2) -> pd.D
     q_values = np.load(q_values_path)[::step]
     n_q = len(q_values)
 
-    raw_data_dir = os.path.join(data_dir, sub_dir)
+    raw_data_dir = os.path.join(data_dir, 'raw', sub_dir)
 
     model_names = [x for x in os.listdir(
         raw_data_dir) if x.endswith('_q_values.npy')]
@@ -62,6 +62,11 @@ def raw_data_to_df(data_dir: str, sub_dir: str = 'large', step: int = 2) -> pd.D
     return pd.DataFrame(data)
 
 
+def quotient_transform(x):
+    x = x[1:] / x[:-1]
+    return np.concatenate([[x[0]], x])
+
+
 @dataclass
 class IqScaler:
     """dataclass for storing mean and std of log(I(q)**2)"""
@@ -79,7 +84,7 @@ class RegressionScaler:
 class SASDataset:
     def __init__(self, df: pd.DataFrame,
                  noise: bool = False,
-                 noise_scale: float = 0.01,
+                 noise_scale: float = 0.005,
                  x_scaler: IqScaler = None,
                  y_scaler: RegressionScaler = None,
                  discretizer: KBinsDiscretizer = None):
@@ -107,7 +112,10 @@ class SASDataset:
         if self.noise:
             I_q = I_q + \
                 np.random.normal(scale=self.noise_scale, size=I_q.shape)
-        I_q = np.log10(I_q**2)
+
+        I_q = quotient_transform(I_q)
+        I_q = np.log10(I_q)
+
         if self.x_scaler is not None:
             # scale I_q
             I_q = (I_q - self.x_scaler.mean) / self.x_scaler.std
@@ -145,8 +153,10 @@ def get_preprocessors(df_train: pd.DataFrame, n_bins) -> Tuple[IqScaler, Regress
     reg_target_columns = [x for x in df_train.columns if x.startswith('reg')]
 
     # I_q scaler
-    I_q_train_transformed = np.log10(
-        df_train[data_columns].values**2)  # just for scaler
+    I_q_train_transformed = quotient_transform(
+        df_train[data_columns].values)
+    I_q_train_transformed = np.log10(I_q_train_transformed)
+
     I_q_mean = I_q_train_transformed.mean()  # global
     I_q_std = I_q_train_transformed.std()  # global
     Iq_scaler = IqScaler(mean=I_q_mean, std=I_q_std)
@@ -154,7 +164,7 @@ def get_preprocessors(df_train: pd.DataFrame, n_bins) -> Tuple[IqScaler, Regress
     # I_q discretizer
     I_q_train_transformed = (I_q_train_transformed - I_q_mean) / I_q_std
     discretizer = KBinsDiscretizer(
-        n_bins, encode='ordinal', strategy='uniform')
+        n_bins, encode='ordinal', strategy='quantile')
     discretizer.fit(np.reshape(I_q_train_transformed, (-1, 1)))
 
     del I_q_train_transformed
@@ -192,7 +202,7 @@ class SASDataModule(pl.LightningDataModule):
     def setup(self, stage: Optional[str] = None):
         train = pd.read_parquet(os.path.join(
             self.data_dir, self.sub_dir, 'train.parquet'))
-        # train = train.sample(n=4096, random_state=256)  # debug REMOVE LATER
+        train = train.sample(n=4096, random_state=256)  # debug REMOVE LATER
         test = pd.read_parquet(os.path.join(
             self.data_dir, self.sub_dir, 'test.parquet'))
 
