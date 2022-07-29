@@ -96,15 +96,15 @@ if __name__ == '__main__':
                         type=int, metavar='num_latents')
     parser.add_argument('--latent_dim', default=256,
                         type=int, metavar='latent_dim')
-    parser.add_argument('--enc_num_self_attn_per_block', default=4,
+    parser.add_argument('--enc_num_self_attn_per_block', default=6,
                         type=int, metavar='encoder_num_self_attn_per_block')
-    parser.add_argument('--enc_num_self_attn_heads', default=2,
+    parser.add_argument('--enc_num_self_attn_heads', default=4,
                         type=int, metavar='encoder_num_self_attn_heads')
-    parser.add_argument('--enc_num_cross_attn_heads', default=1,
+    parser.add_argument('--enc_num_cross_attn_heads', default=2,
                         type=int, metavar='enc_num_cross_attn_heads')
     parser.add_argument('--enc_cross_attn_widening_factor', default=1,
                         type=int, metavar='enc_cross_attn_widening_factor')
-    parser.add_argument('--enc_self_attn_widening_factor', default=1,
+    parser.add_argument('--enc_self_attn_widening_factor', default=3,
                         type=int, metavar='enc_self_attn_widening_factor')
     parser.add_argument('--enc_dropout', default=0.2,
                         type=float, metavar='enc_dropout')
@@ -126,7 +126,7 @@ if __name__ == '__main__':
     # param (reg) decoder args
     parser.add_argument('--param_dec_widening_factor', default=1,
                         type=int, metavar='param_dec_widening_factor')
-    parser.add_argument('--param_dec_num_heads', default=2,
+    parser.add_argument('--param_dec_num_heads', default=4,
                         type=int, metavar='param_decoder_num_heads')
     parser.add_argument('--param_dec_qk_out_dim', default=256,
                         type=int, metavar='param_dec_qk_out_dim')
