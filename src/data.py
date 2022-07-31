@@ -213,7 +213,7 @@ class SASDataModule(pl.LightningDataModule):
         self.num_reg = len(
             [x for x in train.columns if x.startswith('reg')])
 
-        train = log_relevant_regression_targets(train, self.data_dir)
+        # train = log_relevant_regression_targets(train, self.data_dir)
         if self.val_size > 0.0:
             train, val = train_test_split(train,
                                           test_size=self.val_size,
