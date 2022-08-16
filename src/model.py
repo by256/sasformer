@@ -41,7 +41,7 @@ class SASPerceiverIOModel(pl.LightningModule):
                  model_dec_dropout: float = 0.1,
                  model_dec_attn_dropout: float = 0.1,
                  param_dec_widening_factor: int = 1,
-                 param_dec_num_heads: int = 4,
+                 param_dec_num_heads: int = 2,
                  param_dec_qk_out_dim: int = 256,
                  param_dec_dropout: float = 0.2,
                  param_dec_attn_dropout: float = 0.2,

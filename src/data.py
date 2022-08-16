@@ -6,7 +6,7 @@ import pandas as pd
 from dataclasses import dataclass
 from typing import Tuple, Optional
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import KBinsDiscretizer
+from sklearn.preprocessing import KBinsDiscretizer, QuantileTransformer, StandardScaler
 
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
@@ -51,8 +51,7 @@ def raw_data_to_df(data_dir: str, sub_dir: str = 'large', step: int = 2) -> pd.D
 
         n_model_rows = model_I_q.shape[0]
         for i in range(n_model_rows):
-            I_q = {'I(q={})'.format(q_values[j])
-                      : model_I_q[i, j] for j in range(n_q)}
+            I_q = {'I(q={})'.format(q_values[j]): model_I_q[i, j] for j in range(n_q)}
             clf_labels = {'model': model_name, 'model_label': model_idx}
             reg_targets = {param_names[j]: param_values[i, j]
                            for j in range(len(param_names))}
@@ -113,19 +112,23 @@ class SASDataset:
             I_q = I_q + \
                 np.random.normal(scale=self.noise_scale, size=I_q.shape)
 
-        I_q = quotient_transform(I_q)
-        I_q = np.log10(I_q)
+        I_q = np.log10(quotient_transform(I_q))
 
         if self.x_scaler is not None:
             # scale I_q
-            I_q = (I_q - self.x_scaler.mean) / self.x_scaler.std
+            I_q = self.x_scaler.transform(I_q.T).T
+            # I_q = (I_q - self.x_scaler.mean) / self.x_scaler.std
 
-        I_q = self.discretizer.transform(np.reshape(I_q, (-1, 1)))
-        I_q = np.reshape(I_q, (-1, self.I_q.shape[-1]))
+        I_q = self.discretizer.transform(I_q.T).T
+        # I_q = self.discretizer.transform(np.reshape(I_q, (-1, 1)))
+        # I_q = np.reshape(I_q, (-1, self.I_q.shape[-1]))
 
         if self.y_scaler is not None:
-            reg_targets = (reg_targets - self.y_scaler.mean) / \
-                self.y_scaler.std
+            # reg_targets = (reg_targets - self.y_scaler.mean) / \
+            #     self.y_scaler.std
+            # print('reg_targets', reg_targets.shape)
+            reg_targets = self.y_scaler.transform(reg_targets[None, :])[0]
+            # print('reg_targets', reg_targets.shape)
 
         return torch.LongTensor(I_q), self.clf_labels[idx], torch.Tensor(reg_targets)
 
@@ -157,24 +160,20 @@ def get_preprocessors(df_train: pd.DataFrame, n_bins) -> Tuple[IqScaler, Regress
         df_train[data_columns].values)
     I_q_train_transformed = np.log10(I_q_train_transformed)
 
-    I_q_mean = I_q_train_transformed.mean()  # global
-    I_q_std = I_q_train_transformed.std()  # global
-    Iq_scaler = IqScaler(mean=I_q_mean, std=I_q_std)
+    Iq_scaler = StandardScaler()
+    I_q_train_transformed = Iq_scaler.fit_transform(I_q_train_transformed)
 
     # I_q discretizer
-    I_q_train_transformed = (I_q_train_transformed - I_q_mean) / I_q_std
     discretizer = KBinsDiscretizer(
-        n_bins, encode='ordinal', strategy='quantile')
-    discretizer.fit(np.reshape(I_q_train_transformed, (-1, 1)))
+        n_bins, encode='ordinal', strategy='quantile', subsample=None)
+    discretizer.fit(I_q_train_transformed)
 
     del I_q_train_transformed
 
     # regression target scaler
-    reg_mean = np.nanmean(
-        df_train[reg_target_columns].values, axis=0)  # feature-wise
-    reg_std = np.nanstd(
-        df_train[reg_target_columns].values, axis=0)  # feature-wise
-    reg_target_scaler = RegressionScaler(mean=reg_mean, std=reg_std)
+    reg_target_scaler = QuantileTransformer(subsample=len(df_train))
+    reg_target_scaler.fit(df_train[reg_target_columns].values)
+
     return Iq_scaler, reg_target_scaler, discretizer
 
 

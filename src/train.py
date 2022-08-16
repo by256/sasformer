@@ -126,7 +126,7 @@ if __name__ == '__main__':
     # param (reg) decoder args
     parser.add_argument('--param_dec_widening_factor', default=1,
                         type=int, metavar='param_dec_widening_factor')
-    parser.add_argument('--param_dec_num_heads', default=4,
+    parser.add_argument('--param_dec_num_heads', default=2,
                         type=int, metavar='param_decoder_num_heads')
     parser.add_argument('--param_dec_qk_out_dim', default=256,
                         type=int, metavar='param_dec_qk_out_dim')
@@ -228,7 +228,8 @@ if __name__ == '__main__':
 
     strategy = DDPStrategy(
         find_unused_parameters=False) if namespace.strategy == 'ddp' else namespace.strategy
-    ckpt_callback = ModelCheckpoint(save_top_k=-1, every_n_epochs=25)
+    ckpt_callback = ModelCheckpoint(
+        save_top_k=0, every_n_epochs=25)  # save_top_k=-1 for every epoch
     log_every_n_steps = len(datamodule.train_dataset) // params['batch_size']
     trainer = pl.Trainer(
         gpus=namespace.gpus,
