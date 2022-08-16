@@ -205,12 +205,10 @@ if __name__ == '__main__':
 
     if namespace.from_yaml is not None:
         params = load_hparams_from_yaml(namespace.from_yaml)
-        params['n_bins'] = namespace.n_bins  # REMOVE LATER
     else:
         params = load_hparams_from_namespace(namespace)
-    params['x_scaler'] = datamodule.Iq_scaler
-    params['y_scaler'] = datamodule.reg_target_scaler
-    params['discretizer'] = datamodule.discretizer
+    params['input_transformer'] = datamodule.input_transformer
+    params['target_transformer'] = datamodule.target_transformer
 
     model = SASPerceiverIOModel(datamodule.num_clf,
                                 datamodule.num_reg,

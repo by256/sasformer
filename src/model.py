@@ -4,9 +4,9 @@ import torch.nn.functional as F
 import pytorch_lightning as pl
 from torchmetrics.functional import accuracy
 from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
-from sklearn.preprocessing import KBinsDiscretizer
+from sklearn.preprocessing import KBinsDiscretizer, QuantileTransformer
 
-from data import IqScaler, RegressionScaler
+from data import IqTransformer
 from perceiver_io import PerceiverEncoder, PerceiverDecoder, SASPerceiverIO, TaskDecoder
 
 
@@ -51,16 +51,14 @@ class SASPerceiverIOModel(pl.LightningModule):
                  n_bins: int = 256,
                  clf_weight: float = 1.0,
                  reg_weight: float = 1.0,
-                 x_scaler: IqScaler = None,
-                 y_scaler: RegressionScaler = None,
-                 discretizer: KBinsDiscretizer = None):
+                 input_transformer: IqTransformer = None,
+                 target_transformer: QuantileTransformer = None):
         super().__init__()
         self.clf_weight = clf_weight
         self.reg_weight = reg_weight
         # scalers/preprocessors only for inference
-        self.x_scaler = x_scaler
-        self.y_scaler = y_scaler
-        self.discretizer = discretizer
+        self.input_transformer = input_transformer
+        self.target_transformer = target_transformer
         # metrics
         self.num_classes = num_classes
         self.save_hyperparameters(ignore=['model'])

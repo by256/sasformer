@@ -3,10 +3,11 @@ import json
 import torch
 import numpy as np
 import pandas as pd
-from dataclasses import dataclass
 from typing import Tuple, Optional
+from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import KBinsDiscretizer, QuantileTransformer, StandardScaler
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import FunctionTransformer, KBinsDiscretizer, QuantileTransformer
 
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
@@ -62,119 +63,57 @@ def raw_data_to_df(data_dir: str, sub_dir: str = 'large', step: int = 2) -> pd.D
 
 
 def quotient_transform(x):
-    x = x[1:] / x[:-1]
-    return np.concatenate([[x[0]], x])
+    x = np.concatenate([x[:, 0, None], x], axis=1)
+    return x[:, 1:] / x[:, :-1]
 
 
-@dataclass
-class IqScaler:
-    """dataclass for storing mean and std of log10(I(q+1)/I(q)"""
-    mean: str
-    std: float
+class IqTransformer(BaseEstimator, TransformerMixin):
+    def __init__(self, n_bins=256):
+        self.n_bins = n_bins
+        square_quotient_log = FunctionTransformer(
+            self.square_quotient_log_transform_)
+        discretizer = KBinsDiscretizer(
+            n_bins, encode='ordinal', strategy='quantile', subsample=None)
+        self.pipeline = Pipeline(
+            [('square_quotient_log', square_quotient_log),
+             ('discretizer', discretizer)]
+        )
 
+    def fit(self, x):
+        self.pipeline.fit(x)
 
-@dataclass
-class RegressionScaler:
-    """dataclass for storing mean and std of regression targets"""
-    mean: str
-    std: float
+    def transform(self, x):
+        return self.pipeline.transform(x)
+
+    def square_quotient_log_transform_(self, x):
+        return np.log10(quotient_transform(x**2))
 
 
 class SASDataset:
     def __init__(self, df: pd.DataFrame,
-                 noise: bool = False,
-                 noise_scale: float = 0.005,
-                 x_scaler: IqScaler = None,
-                 y_scaler: RegressionScaler = None,
-                 discretizer: KBinsDiscretizer = None):
+                 x_scaler: IqTransformer,
+                 y_scaler: QuantileTransformer):
         self.df = df.reset_index(drop=True)
-        self.noise = noise
-        self.noise_scale = noise_scale
         self.x_scaler = x_scaler
         self.y_scaler = y_scaler
-        self.discretizer = discretizer
 
         data_columns = [x for x in df.columns if x.startswith('I(q')]
         reg_target_columns = [x for x in df.columns if x.startswith('reg')]
 
         self.I_q = df[data_columns].values
+        self.I_q_transformed = x_scaler.transform(self.I_q)
         self.reg_targets = df[reg_target_columns].values
+        self.reg_targets_transformed = self.y_scaler.transform(
+            self.reg_targets)
         self.clf_labels = df['model_label'].values
 
     def __len__(self):
         return len(self.df)
 
     def __getitem__(self, idx):
-        I_q = self.I_q[idx, :, None]
-        reg_targets = self.reg_targets[idx, :]
-
-        if self.noise:
-            I_q = I_q + \
-                np.random.normal(scale=self.noise_scale, size=I_q.shape)
-
-        I_q = np.log10(quotient_transform(I_q))
-
-        if self.x_scaler is not None:
-            # scale I_q
-            I_q = self.x_scaler.transform(I_q.T).T
-            # I_q = (I_q - self.x_scaler.mean) / self.x_scaler.std
-
-        I_q = self.discretizer.transform(I_q.T).T
-        # I_q = self.discretizer.transform(np.reshape(I_q, (-1, 1)))
-        # I_q = np.reshape(I_q, (-1, self.I_q.shape[-1]))
-
-        if self.y_scaler is not None:
-            # reg_targets = (reg_targets - self.y_scaler.mean) / \
-            #     self.y_scaler.std
-            # print('reg_targets', reg_targets.shape)
-            reg_targets = self.y_scaler.transform(reg_targets[None, :])[0]
-            # print('reg_targets', reg_targets.shape)
-
+        I_q = self.I_q_transformed[idx, :, None]
+        reg_targets = self.reg_targets_transformed[idx, :]
         return torch.LongTensor(I_q), self.clf_labels[idx], torch.Tensor(reg_targets)
-
-
-def log_relevant_regression_targets(df: pd.DataFrame, data_dir: str) -> pd.DataFrame:
-    reg_target_columns = [x for x in df.columns if x.startswith('reg')]
-
-    with open(os.path.join(data_dir, 'scales.json'), 'r') as f:
-        scales = json.load(f)
-    model_param = [x.split('-')[1:] for x in reg_target_columns]
-    model_param = [(x[0].split('=')[-1], x[1].split('=')[-1])
-                   for x in model_param]
-    for idx, (model_name, param_name) in enumerate(model_param):
-        col_name = reg_target_columns[idx]
-        if param_name == 'polydispersity':
-            continue
-        scale = scales[model_name][param_name]
-        if scale == 'log':
-            df[col_name] = np.log(df[col_name])
-    return df
-
-
-def get_preprocessors(df_train: pd.DataFrame, n_bins) -> Tuple[IqScaler, RegressionScaler, KBinsDiscretizer]:
-    data_columns = [x for x in df_train.columns if x.startswith('I(q')]
-    reg_target_columns = [x for x in df_train.columns if x.startswith('reg')]
-
-    # I_q scaler
-    I_q_train_transformed = quotient_transform(
-        df_train[data_columns].values)
-    I_q_train_transformed = np.log10(I_q_train_transformed)
-
-    Iq_scaler = StandardScaler()
-    I_q_train_transformed = Iq_scaler.fit_transform(I_q_train_transformed)
-
-    # I_q discretizer
-    discretizer = KBinsDiscretizer(
-        n_bins, encode='ordinal', strategy='quantile', subsample=None)
-    discretizer.fit(I_q_train_transformed)
-
-    del I_q_train_transformed
-
-    # regression target scaler
-    reg_target_scaler = QuantileTransformer(subsample=len(df_train))
-    reg_target_scaler.fit(df_train[reg_target_columns].values)
-
-    return Iq_scaler, reg_target_scaler, discretizer
 
 
 class SASDataModule(pl.LightningDataModule):
@@ -196,9 +135,8 @@ class SASDataModule(pl.LightningDataModule):
         self.seed = seed
         self.num_clf = None
         self.num_reg = None
-        self.Iq_scaler = None
-        self.reg_target_scaler = None
-        self.discretizer = None
+        self.input_transformer = None
+        self.target_transformer = None
 
     def setup(self, stage: Optional[str] = None):
         train = pd.read_parquet(os.path.join(
@@ -212,30 +150,34 @@ class SASDataModule(pl.LightningDataModule):
         self.num_reg = len(
             [x for x in train.columns if x.startswith('reg')])
 
-        train = log_relevant_regression_targets(train, self.data_dir)
+        # train = log_relevant_regression_targets(train, self.data_dir)
         if self.val_size > 0.0:
             train, val = train_test_split(train,
                                           test_size=self.val_size,
                                           stratify=train['model_label'],
                                           random_state=self.seed)
 
-        # calculate input and output scalers
-        Iq_scaler, reg_target_scaler, discretizer = get_preprocessors(
-            train, self.n_bins)
-        self.Iq_scaler = Iq_scaler
-        self.reg_target_scaler = reg_target_scaler
-        self.discretizer = discretizer
+        # calculate I(q) and target transformers
+        Iq_cols = [x for x in train.columns if x.startswith('I(q')]
+        input_transformer = IqTransformer(self.n_bins)
+        input_transformer.fit(train[Iq_cols].values)
+        self.input_transformer = input_transformer
+
+        reg_target_cols = [x for x in train.columns if x.startswith('reg')]
+        target_transformer = QuantileTransformer(subsample=len(train))
+        target_transformer.fit(train[reg_target_cols].values)
+        self.target_transformer = target_transformer
 
         # PyTorch dataset classes
         self.train_dataset = SASDataset(
-            train, noise=False, x_scaler=Iq_scaler, y_scaler=reg_target_scaler, discretizer=discretizer)
+            train, input_transformer, target_transformer)
 
         if self.val_size > 0.0:
             self.val_dataset = SASDataset(
-                val, noise=False, x_scaler=Iq_scaler, y_scaler=reg_target_scaler, discretizer=discretizer)
+                val, input_transformer, target_transformer)
 
         self.test_dataset = SASDataset(
-            test, noise=False, x_scaler=Iq_scaler, y_scaler=reg_target_scaler, discretizer=discretizer)
+            test, input_transformer, target_transformer)
 
     def train_dataloader(self):
         return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True)
@@ -247,7 +189,7 @@ class SASDataModule(pl.LightningDataModule):
         return DataLoader(self.test_dataset, batch_size=self.batch_size)
 
     def predict_dataloader(self):
-        raise NotImplementedError('predict_dataloader method not implemented.')
+        raise NotImplementedError
 
     def teardown(self, stage: Optional[str] = None):
         # Used to clean-up when the run is finished
