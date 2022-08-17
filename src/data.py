@@ -70,20 +70,20 @@ def quotient_transform(x):
 class IqTransformer(BaseEstimator, TransformerMixin):
     def __init__(self, n_bins=256):
         self.n_bins = n_bins
-        square_quotient_log = FunctionTransformer(
+        self.square_quotient_log = FunctionTransformer(
             self.square_quotient_log_transform_)
-        discretizer = KBinsDiscretizer(
+        self.discretizer = KBinsDiscretizer(
             n_bins, encode='ordinal', strategy='quantile', subsample=None)
-        self.pipeline = Pipeline(
-            [('square_quotient_log', square_quotient_log),
-             ('discretizer', discretizer)]
-        )
 
     def fit(self, x):
-        self.pipeline.fit(x)
+        x = self.square_quotient_log.transform(x)
+        self.discretizer.fit(np.reshape(x, (-1, 1)))
 
     def transform(self, x):
-        return self.pipeline.transform(x)
+        x = self.square_quotient_log.transform(x)
+        x = np.reshape(self.discretizer.transform(
+            np.reshape(x, (-1, 1))), (-1, x.shape[-1]))
+        return x
 
     def square_quotient_log_transform_(self, x):
         return np.log10(quotient_transform(x**2))

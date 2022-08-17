@@ -30,12 +30,13 @@ def objective(trial, namespace, root_dir, data_dir):
                 # 'lr': trial.suggest_loguniform('lr', 1e-5, 1e-1),
                 'batch_size': 2,   # placeholder
                 # 'batch_size': trial.suggest_categorical('latent_dim', [32, 64, 128, 256]),
-                'num_latents': trial.suggest_categorical('num_latents', [64, 128]),
-                'latent_dim': 256,
+                'n_bins': trial.suggest_categorical('num_latents', [64, 128, 256, 512]),
+                'num_latents': trial.suggest_categorical('num_latents', [64, 128, 256]),
+                'latent_dim': [64, 128, 256],
                 # encoder args
                 'enc_num_self_attn_per_block': trial.suggest_int('enc_num_self_attn_per_block', 2, 6),
-                'enc_num_cross_attn_heads': trial.suggest_categorical('enc_num_cross_attn_heads', [1, 2, 4]),
-                'enc_num_self_attn_heads': trial.suggest_categorical('enc_num_self_attn_heads', [1, 2, 4]),
+                'enc_num_cross_attn_heads': trial.suggest_categorical('enc_num_cross_attn_heads', [1, 2, 4, 8]),
+                'enc_num_self_attn_heads': trial.suggest_categorical('enc_num_self_attn_heads', [1, 2, 4, 8]),
                 'enc_cross_attn_widening_factor': trial.suggest_int('enc_cross_attn_widening_factor', 1, 3),
                 'enc_self_attn_widening_factor': trial.suggest_int('enc_self_attn_widening_factor', 1, 3),
                 'enc_dropout': dropout,
@@ -87,7 +88,7 @@ def objective(trial, namespace, root_dir, data_dir):
 
     strategy = DDPStrategy(
         find_unused_parameters=False) if namespace.strategy == 'ddp' else namespace.strategy
-    early_stopping = EarlyStopping(monitor='val/total_loss', patience=20)
+    early_stopping = EarlyStopping(monitor='val/total_loss', patience=15)
     trainer = pl.Trainer(gpus=namespace.gpus,
                          max_epochs=namespace.max_epochs,
                          gradient_clip_val=namespace.gradient_clip_val,
