@@ -30,9 +30,9 @@ def objective(trial, namespace, root_dir, data_dir):
                 # 'lr': trial.suggest_loguniform('lr', 1e-5, 1e-1),
                 'batch_size': 2,   # placeholder
                 # 'batch_size': trial.suggest_categorical('latent_dim', [32, 64, 128, 256]),
-                'n_bins': trial.suggest_categorical('num_latents', [64, 128, 256, 512]),
+                'n_bins': trial.suggest_categorical('n_bins', [64, 128, 256, 512]),
                 'num_latents': trial.suggest_categorical('num_latents', [64, 128, 256]),
-                'latent_dim': [64, 128, 256],
+                'latent_dim': trial.suggest_categorical('latent_dim', [64, 128, 256]),
                 # encoder args
                 'enc_num_self_attn_per_block': trial.suggest_int('enc_num_self_attn_per_block', 2, 6),
                 'enc_num_cross_attn_heads': trial.suggest_categorical('enc_num_cross_attn_heads', [1, 2, 4, 8]),
@@ -67,9 +67,8 @@ def objective(trial, namespace, root_dir, data_dir):
 
     model = SASPerceiverIOModel(datamodule.num_clf,
                                 datamodule.num_reg,
-                                x_scaler=datamodule.Iq_scaler,
-                                y_scaler=datamodule.reg_target_scaler,
-                                discretizer=datamodule.discretizer,
+                                input_transformer=datamodule.input_transformer,
+                                target_transformer=datamodule.target_transformer,
                                 **params_i)
 
     batch_size = estimate_batch_size(model, datamodule)
@@ -79,8 +78,8 @@ def objective(trial, namespace, root_dir, data_dir):
     # annoying but necessary for correct wandb batch size logging
     model.__init__(datamodule.num_clf,
                    datamodule.num_reg,
-                   x_scaler=datamodule.Iq_scaler,
-                   y_scaler=datamodule.reg_target_scaler,
+                   input_transformer=datamodule.input_transformer,
+                   target_transformer=datamodule.target_transformer,
                    **params_i)
 
     logger = WandbLogger(project=namespace.project_name,
