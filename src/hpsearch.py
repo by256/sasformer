@@ -26,40 +26,42 @@ def clear_cache():
 
 def objective(trial, namespace, root_dir, data_dir):
     dropout = trial.suggest_float('dropout', 0.0, 0.5, step=0.05)
-    params_i = {'lr': 2e-3,
-                # 'lr': trial.suggest_loguniform('lr', 1e-5, 1e-1),
-                'batch_size': 2,   # placeholder
-                # 'batch_size': trial.suggest_categorical('latent_dim', [32, 64, 128, 256]),
-                'n_bins': trial.suggest_categorical('n_bins', [64, 128, 256, 512]),
-                'num_latents': trial.suggest_categorical('num_latents', [64, 128, 256]),
-                'latent_dim': trial.suggest_categorical('latent_dim', [64, 128, 256]),
-                # encoder args
-                'enc_num_self_attn_per_block': trial.suggest_int('enc_num_self_attn_per_block', 2, 6),
-                'enc_num_cross_attn_heads': trial.suggest_categorical('enc_num_cross_attn_heads', [1, 2, 4, 8]),
-                'enc_num_self_attn_heads': trial.suggest_categorical('enc_num_self_attn_heads', [1, 2, 4, 8]),
-                'enc_cross_attn_widening_factor': trial.suggest_int('enc_cross_attn_widening_factor', 1, 3),
-                'enc_self_attn_widening_factor': trial.suggest_int('enc_self_attn_widening_factor', 1, 3),
-                'enc_dropout': dropout,
-                'enc_cross_attention_dropout': dropout,
-                'enc_self_attention_dropout': dropout,
-                # model decoder args
-                'model_dec_widening_factor': trial.suggest_int('model_dec_widening_factor', 1, 3),
-                'model_dec_num_heads': trial.suggest_categorical('model_dec_num_heads', [1, 2, 4]),
-                'model_dec_qk_out_dim': 64,
-                'model_dec_dropout': dropout,
-                'model_dec_attn_dropout': dropout,
-                # param decoder args
-                'param_dec_widening_factor': trial.suggest_int('param_dec_widening_factor', 1, 3),
-                'param_dec_num_heads': trial.suggest_categorical('param_dec_num_heads', [1, 2, 4, 8]),
-                'param_dec_qk_out_dim': 256,
-                'param_dec_dropout': trial.suggest_float('param_dec_dropout', 0.1, 0.5, step=0.05),
-                # loss args
-                'clf_weight': 1.0,
-                'reg_weight': 1.0
-                }
+    params_i = {
+        # 'lr': 2e-3,
+        'lr': trial.suggest_loguniform('lr', 5e-4, 1e-2),
+        'batch_size': 2,   # placeholder
+        # 'batch_size': trial.suggest_categorical('latent_dim', [32, 64, 128, 256]),
+        'n_bins': trial.suggest_categorical('n_bins', [64, 128, 256, 512]),
+        'num_latents': trial.suggest_categorical('num_latents', [64, 128, 256]),
+        'latent_dim': trial.suggest_categorical('latent_dim', [64, 128, 256]),
+        # encoder args
+        'enc_num_self_attn_per_block': trial.suggest_int('enc_num_self_attn_per_block', 2, 6),
+        'enc_num_cross_attn_heads': trial.suggest_categorical('enc_num_cross_attn_heads', [1, 2, 4, 8]),
+        'enc_num_self_attn_heads': trial.suggest_categorical('enc_num_self_attn_heads', [1, 2, 4, 8]),
+        'enc_cross_attn_widening_factor': trial.suggest_int('enc_cross_attn_widening_factor', 1, 3),
+        'enc_self_attn_widening_factor': trial.suggest_int('enc_self_attn_widening_factor', 1, 3),
+        'enc_dropout': dropout,
+        'enc_cross_attention_dropout': dropout,
+        'enc_self_attention_dropout': dropout,
+        # model decoder args
+        'model_dec_widening_factor': trial.suggest_int('model_dec_widening_factor', 1, 3),
+        'model_dec_num_heads': trial.suggest_categorical('model_dec_num_heads', [1, 2, 4]),
+        'model_dec_qk_out_dim': 64,
+        'model_dec_dropout': dropout,
+        'model_dec_attn_dropout': dropout,
+        # param decoder args
+        'param_dec_widening_factor': trial.suggest_int('param_dec_widening_factor', 1, 3),
+        'param_dec_num_heads': trial.suggest_categorical('param_dec_num_heads', [1, 2, 4, 8]),
+        'param_dec_qk_out_dim': 256,
+        'param_dec_dropout': trial.suggest_float('param_dec_dropout', 0.1, 0.5, step=0.05),
+        # loss args
+        'clf_weight': 1.0,
+        'reg_weight': 1.0
+    }
 
     datamodule = SASDataModule(data_dir=data_dir,
                                sub_dir=namespace.sub_dir,
+                               n_bins=params_i['n_bins'],
                                batch_size=32,  # place holder
                                val_size=namespace.val_size,
                                seed=namespace.seed)
