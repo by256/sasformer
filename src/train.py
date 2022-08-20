@@ -22,7 +22,7 @@ def estimate_batch_size(model, datamodule):
     model_size = model.model_size  # Mb
     gpu_mem = torch.cuda.get_device_properties(0).total_memory * 1e-6
     batch_size_exponent = np.floor(
-        np.log2(gpu_mem / (input_size + model_size))) - 2.0
+        np.log2(gpu_mem / (input_size + model_size))) - 1.0
     return int(2**batch_size_exponent)
 
 
