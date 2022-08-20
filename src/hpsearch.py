@@ -27,8 +27,8 @@ def clear_cache():
 def objective(trial, namespace, root_dir, data_dir):
     dropout = trial.suggest_float('dropout', 0.0, 0.5, step=0.05)
     params_i = {
-        # 'lr': 2e-3,
-        'lr': trial.suggest_loguniform('lr', 5e-4, 1e-2),
+        'lr': 2e-3,
+        # 'lr': trial.suggest_loguniform('lr', 5e-4, 1e-2),
         'batch_size': 2,   # placeholder
         # 'batch_size': trial.suggest_categorical('latent_dim', [32, 64, 128, 256]),
         'n_bins': trial.suggest_categorical('n_bins', [64, 128, 256, 512]),
@@ -73,7 +73,8 @@ def objective(trial, namespace, root_dir, data_dir):
                                 target_transformer=datamodule.target_transformer,
                                 **params_i)
 
-    batch_size = estimate_batch_size(model, datamodule)
+    # batch_size = estimate_batch_size(model, datamodule)
+    batch_size = 1024
     params_i['batch_size'] = batch_size
     datamodule.batch_size = batch_size
 
