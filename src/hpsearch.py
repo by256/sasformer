@@ -74,6 +74,8 @@ def objective(trial, namespace, root_dir, data_dir):
                                 **params_i)
 
     batch_size = estimate_batch_size(model, datamodule)
+    if batch_size > 4096:
+        batch_size = 4096
     params_i['batch_size'] = batch_size
     datamodule.batch_size = batch_size
 
