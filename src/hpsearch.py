@@ -27,6 +27,7 @@ def clear_cache():
 def objective(trial, namespace, root_dir, data_dir):
     dropout = trial.suggest_float('dropout', 0.0, 0.5, step=0.05)
     params_i = {
+        'batch_size': 1024,
         'lr': 2e-3,
         # 'lr': trial.suggest_loguniform('lr', 5e-4, 1e-2),
         'batch_size': 2,   # placeholder
@@ -62,7 +63,7 @@ def objective(trial, namespace, root_dir, data_dir):
     datamodule = SASDataModule(data_dir=data_dir,
                                sub_dir=namespace.sub_dir,
                                n_bins=params_i['n_bins'],
-                               batch_size=32,  # place holder
+                               batch_size=params_i['batch_size'],
                                val_size=namespace.val_size,
                                seed=namespace.seed)
     datamodule.setup()  # needed to initialze num_reg, num_clf and scalers
@@ -74,9 +75,9 @@ def objective(trial, namespace, root_dir, data_dir):
                                 **params_i)
 
     # batch_size = estimate_batch_size(model, datamodule)
-    batch_size = 1024
-    params_i['batch_size'] = batch_size
-    datamodule.batch_size = batch_size
+    # batch_size = 1024
+    # params_i['batch_size'] = batch_size
+    # datamodule.batch_size = batch_size
 
     # annoying but necessary for correct wandb batch size logging
     model.__init__(datamodule.num_clf,
