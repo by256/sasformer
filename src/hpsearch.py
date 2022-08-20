@@ -30,7 +30,6 @@ def objective(trial, namespace, root_dir, data_dir):
         'batch_size': 1024,
         'lr': 2e-3,
         # 'lr': trial.suggest_loguniform('lr', 5e-4, 1e-2),
-        'batch_size': 2,   # placeholder
         # 'batch_size': trial.suggest_categorical('latent_dim', [32, 64, 128, 256]),
         'n_bins': trial.suggest_categorical('n_bins', [64, 128, 256, 512]),
         'num_latents': trial.suggest_categorical('num_latents', [64, 128, 256]),
