@@ -1,16 +1,17 @@
-import os
+import copy
 import json
-import torch
+import math
 import numpy as np
+import os
 import pandas as pd
-from typing import Tuple, Optional
+import pytorch_lightning as pl
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import FunctionTransformer, KBinsDiscretizer, QuantileTransformer
-
+from sklearn.preprocessing import FunctionTransformer, KBinsDiscretizer, StandardScaler
+import torch
 from torch.utils.data import DataLoader
-import pytorch_lightning as pl
+from typing import Tuple, Optional
 
 
 def raw_data_to_df(data_dir: str, sub_dir: str = 'large', step: int = 2) -> pd.DataFrame:
@@ -52,7 +53,7 @@ def raw_data_to_df(data_dir: str, sub_dir: str = 'large', step: int = 2) -> pd.D
 
         n_model_rows = model_I_q.shape[0]
         for i in range(n_model_rows):
-            I_q = {'I(q={})'.format(q_values[j]): model_I_q[i, j] for j in range(n_q)}
+            I_q = {'I(q={})'.format(q_values[j])                   : model_I_q[i, j] for j in range(n_q)}
             clf_labels = {'model': model_name, 'model_label': model_idx}
             reg_targets = {param_names[j]: param_values[i, j]
                            for j in range(len(param_names))}
@@ -78,6 +79,7 @@ class IqTransformer(BaseEstimator, TransformerMixin):
     def fit(self, x):
         x = self.square_quotient_log.transform(x)
         self.discretizer.fit(np.reshape(x, (-1, 1)))
+        return self
 
     def transform(self, x):
         x = self.square_quotient_log.transform(x)
@@ -89,10 +91,51 @@ class IqTransformer(BaseEstimator, TransformerMixin):
         return np.log10(quotient_transform(x**2))
 
 
+class TargetTransformer(BaseEstimator, TransformerMixin):
+    def __init__(self):
+        self.log_indices = None
+        self.scaler = StandardScaler()
+
+    def fit(self, x):
+        x = copy.deepcopy(x)
+        n, f = x.shape
+        log_indices = np.array(
+            [i for i in range(f) if not self.check_col_is_uniform_(x[:, i])], dtype=int)
+        self.log_indices = log_indices
+        x[:, log_indices] = np.log10(x[:, log_indices])
+        self.scaler.fit(x)
+        return self
+
+    def transform(self, x):
+        x = copy.deepcopy(x)
+        x[:, self.log_indices] = np.log10(x[:, self.log_indices])
+        return self.scaler.transform(x)
+
+    def inverse_transform(self, x):
+        x = copy.deepcopy(x)
+        x = self.scaler.inverse_transform(x)
+        x[:, self.log_indices] = 10.0**x[:, self.log_indices]
+        return x
+
+    def check_col_is_uniform_(self, y_i):
+        y_i = y_i[~np.isnan(y_i)]
+        y_i = y_i - y_i.min()
+        qs = np.linspace(0, 1, 100)
+        y_i_quantiles = np.quantile(y_i, qs)
+
+        u_i = np.random.uniform(y_i.min(), y_i.max(), size=(len(y_i)))
+        u_i_quantiles = np.quantile(u_i, qs)
+
+        y_norm = np.linalg.norm(y_i_quantiles)
+        u_norm = np.linalg.norm(u_i_quantiles)
+        dist = np.dot(y_i_quantiles, u_i_quantiles) / (y_norm*u_norm)
+        return math.isclose(dist, 1.0, abs_tol=0.01)
+
+
 class SASDataset:
     def __init__(self, df: pd.DataFrame,
                  x_scaler: IqTransformer,
-                 y_scaler: QuantileTransformer):
+                 y_scaler: TargetTransformer):
         self.df = df.reset_index(drop=True)
         self.x_scaler = x_scaler
         self.y_scaler = y_scaler
@@ -164,7 +207,7 @@ class SASDataModule(pl.LightningDataModule):
         self.input_transformer = input_transformer
 
         reg_target_cols = [x for x in train.columns if x.startswith('reg')]
-        target_transformer = QuantileTransformer(subsample=len(train))
+        target_transformer = TargetTransformer()
         target_transformer.fit(train[reg_target_cols].values)
         self.target_transformer = target_transformer
 
