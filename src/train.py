@@ -22,7 +22,7 @@ def estimate_batch_size(model, datamodule):
     model_size = model.model_size  # Mb
     gpu_mem = torch.cuda.get_device_properties(0).total_memory * 1e-6
     batch_size_exponent = np.floor(
-        np.log2(gpu_mem / (input_size + model_size))) - 1.0
+        np.log2(gpu_mem / (input_size + model_size))) - 2.0
     return int(2**batch_size_exponent)
 
 
@@ -152,7 +152,7 @@ if __name__ == '__main__':
     parser.add_argument('--lr', default=2e-3, type=float, metavar='lr')
     parser.add_argument('--weight_decay', default=1e-8,
                         type=float, metavar='weight_decay')
-    parser.add_argument('--max_epochs', default=500,
+    parser.add_argument('--max_epochs', default=200,
                         type=int, metavar='max_epochs')
     parser.add_argument('--gradient_clip_val', default=1.0,
                         type=float, metavar='gradient_clip_val')
@@ -227,7 +227,7 @@ if __name__ == '__main__':
     strategy = DDPStrategy(
         find_unused_parameters=False) if namespace.strategy == 'ddp' else namespace.strategy
     ckpt_callback = ModelCheckpoint(
-        save_top_k=0, every_n_epochs=25)  # save_top_k=-1 for every epoch
+        save_top_k=1, every_n_epochs=25)  # save_top_k=-1 for every epoch
     log_every_n_steps = len(datamodule.train_dataset) // params['batch_size']
     trainer = pl.Trainer(
         gpus=namespace.gpus,
