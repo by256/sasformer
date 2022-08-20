@@ -17,7 +17,6 @@ class PerceiverEncoder(nn.Module):
         self,
         num_latents: int,
         latent_dim: int,
-        input_dim: int,
         num_self_attn_per_block: int = 2,
         num_blocks: int = 4,
         qk_out_dim: Optional[int] = None,
@@ -36,7 +35,7 @@ class PerceiverEncoder(nn.Module):
         Args:
             num_latents: Number of latent vectors.
             latent_dim: Dimension of latent vector.
-            input_dim: Dimension of input tensor.
+            # input_dim: Dimension of input tensor.
             num_self_attn_per_block: Number of self-attention modules per
                 transformer block. Defaults to 2.
             num_blocks: Number of transformer blocks. Defaults to 4.
@@ -61,7 +60,6 @@ class PerceiverEncoder(nn.Module):
                 Defaults to 0.
         """
         super().__init__()
-        self.input_dim = input_dim
         self.latent_dim = latent_dim
         self.num_blocks = num_blocks
         self.latents = nn.Parameter(torch.randn(num_latents, latent_dim))
