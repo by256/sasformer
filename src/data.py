@@ -79,16 +79,18 @@ class IqTransformer(BaseEstimator, TransformerMixin):
     def fit(self, x):
         x = self.square_quotient_log.transform(x)
         self.discretizer.fit(np.reshape(x, (-1, 1)))
+        # self.discretizer.fit(x)
         return self
 
     def transform(self, x):
         x = self.square_quotient_log.transform(x)
         x = np.reshape(self.discretizer.transform(
             np.reshape(x, (-1, 1))), (-1, x.shape[-1]))
+        # x = self.discretizer.transform(x)
         return x
 
     def square_quotient_log_transform_(self, x):
-        return np.log10(quotient_transform(x**2))
+        return np.log(quotient_transform(x**2))
 
 
 class TargetTransformer(BaseEstimator, TransformerMixin):
@@ -102,19 +104,20 @@ class TargetTransformer(BaseEstimator, TransformerMixin):
         log_indices = np.array(
             [i for i in range(f) if not self.check_col_is_uniform_(x[:, i])], dtype=int)
         self.log_indices = log_indices
-        x[:, log_indices] = np.log10(x[:, log_indices])
+        x[:, log_indices] = np.log(x[:, log_indices])
         self.scaler.fit(x)
         return self
 
     def transform(self, x):
         x = copy.deepcopy(x)
-        x[:, self.log_indices] = np.log10(x[:, self.log_indices])
+        x[:, self.log_indices] = np.log(x[:, self.log_indices])
         return self.scaler.transform(x)
 
     def inverse_transform(self, x):
         x = copy.deepcopy(x)
         x = self.scaler.inverse_transform(x)
-        x[:, self.log_indices] = 10.0**x[:, self.log_indices]
+        # x[:, self.log_indices] = 10.0**x[:, self.log_indices]
+        x[:, self.log_indices] = np.exp(x[:, self.log_indices])
         return x
 
     def check_col_is_uniform_(self, y_i):
@@ -193,7 +196,6 @@ class SASDataModule(pl.LightningDataModule):
         self.num_reg = len(
             [x for x in train.columns if x.startswith('reg')])
 
-        # train = log_relevant_regression_targets(train, self.data_dir)
         if self.val_size > 0.0:
             train, val = train_test_split(train,
                                           test_size=self.val_size,
