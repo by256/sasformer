@@ -51,7 +51,7 @@ class PerceiverDecoder(BasePerceiverDecoder):
         qk_out_dim: Optional[int] = None,
         v_out_dim: Optional[int] = None,
         projection_dim: Optional[int] = None,
-        use_query_residual: bool = True,
+        use_query_residual: bool = False,
         dropout: float = 0.0,
         attention_dropout: float = 0.0
     ):
@@ -153,7 +153,7 @@ class TaskDecoder(BasePerceiverDecoder):
             qk_out_dim=qk_out_dim,
             v_out_dim=v_out_dim,
             projection_dim=projection_dim,
-            use_query_residual=True,
+            use_query_residual=False,
             dropout=dropout,
             attention_dropout=attention_dropout
         )

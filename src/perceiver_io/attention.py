@@ -191,7 +191,7 @@ class CrossAttention(nn.Module):
         v_out_dim: Optional[int] = None,
         widening_factor: int = 1,
         num_heads: int = 1,
-        use_query_residual: bool = True,
+        use_query_residual: bool = False,
         dropout: float = 0.0,
         attention_dropout: float = 0.0
     ):

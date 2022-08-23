@@ -48,6 +48,7 @@ def load_hparams_from_yaml(path):
 def load_hparams_from_namespace(namespace):
     hparams = {'num_latents': namespace.num_latents,
                'latent_dim': namespace.latent_dim,
+               'enc_num_blocks': namespace.enc_num_blocks,
                'enc_num_self_attn_per_block': namespace.enc_num_self_attn_per_block,
                'enc_num_cross_attn_heads': namespace.enc_num_cross_attn_heads,
                'enc_num_self_attn_heads': namespace.enc_num_self_attn_heads,
@@ -96,15 +97,17 @@ if __name__ == '__main__':
                         type=int, metavar='num_latents')
     parser.add_argument('--latent_dim', default=256,
                         type=int, metavar='latent_dim')
-    parser.add_argument('--enc_num_self_attn_per_block', default=6,
+    parser.add_argument('--enc_num_blocks', default=4,
+                        type=int, metavar='enc_num_blocks')
+    parser.add_argument('--enc_num_self_attn_per_block', default=5,
                         type=int, metavar='encoder_num_self_attn_per_block')
-    parser.add_argument('--enc_num_self_attn_heads', default=4,
+    parser.add_argument('--enc_num_self_attn_heads', default=1,
                         type=int, metavar='encoder_num_self_attn_heads')
     parser.add_argument('--enc_num_cross_attn_heads', default=2,
                         type=int, metavar='enc_num_cross_attn_heads')
     parser.add_argument('--enc_cross_attn_widening_factor', default=1,
                         type=int, metavar='enc_cross_attn_widening_factor')
-    parser.add_argument('--enc_self_attn_widening_factor', default=3,
+    parser.add_argument('--enc_self_attn_widening_factor', default=2,
                         type=int, metavar='enc_self_attn_widening_factor')
     parser.add_argument('--enc_dropout', default=0.2,
                         type=float, metavar='enc_dropout')
@@ -113,7 +116,7 @@ if __name__ == '__main__':
     parser.add_argument('--enc_self_attention_dropout', default=0.2,
                         type=float, metavar='enc_self_attention_dropout')
     # model (clf) decoder args
-    parser.add_argument('--model_dec_widening_factor', default=1,
+    parser.add_argument('--model_dec_widening_factor', default=2,
                         type=int, metavar='model_dec_widening_factor')
     parser.add_argument('--model_dec_num_heads', default=1,
                         type=int, metavar='model_decoder_num_heads')
@@ -126,7 +129,7 @@ if __name__ == '__main__':
     # param (reg) decoder args
     parser.add_argument('--param_dec_widening_factor', default=1,
                         type=int, metavar='param_dec_widening_factor')
-    parser.add_argument('--param_dec_num_heads', default=2,
+    parser.add_argument('--param_dec_num_heads', default=1,
                         type=int, metavar='param_decoder_num_heads')
     parser.add_argument('--param_dec_qk_out_dim', default=256,
                         type=int, metavar='param_dec_qk_out_dim')
@@ -138,7 +141,7 @@ if __name__ == '__main__':
     parser.add_argument('--subsample', default=None,
                         type=int, help='Subsample data (for debugging)', metavar='subsample')
     # lightning model args
-    parser.add_argument('--n_bins', default=256,
+    parser.add_argument('--n_bins', default=128,
                         type=int, help='n bins for input discretization.', metavar='n_bins')
     parser.add_argument('--clf_weight', default=1.0,
                         type=float, metavar='clf_weight')
@@ -227,7 +230,7 @@ if __name__ == '__main__':
     strategy = DDPStrategy(
         find_unused_parameters=False) if namespace.strategy == 'ddp' else namespace.strategy
     ckpt_callback = ModelCheckpoint(
-        save_top_k=1, every_n_epochs=25)  # save_top_k=-1 for every epoch
+        save_top_k=0, every_n_epochs=25)  # save_top_k=-1 for every epoch
     log_every_n_steps = len(datamodule.train_dataset) // params['batch_size']
     trainer = pl.Trainer(
         gpus=namespace.gpus,
@@ -245,7 +248,6 @@ if __name__ == '__main__':
         log_every_n_steps=log_every_n_steps,
         flush_logs_every_n_steps=1e12  # this prevents training from freezing at 100 steps
     )
-
     trainer.fit(model,
                 datamodule=datamodule,
                 ckpt_path=namespace.ckpt_path)
