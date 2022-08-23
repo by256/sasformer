@@ -54,19 +54,19 @@ def load_hparams_from_namespace(namespace):
                'enc_num_self_attn_heads': namespace.enc_num_self_attn_heads,
                'enc_cross_attn_widening_factor': namespace.enc_cross_attn_widening_factor,
                'enc_self_attn_widening_factor': namespace.enc_self_attn_widening_factor,
-               'enc_dropout': namespace.enc_dropout,
-               'enc_cross_attention_dropout': namespace.enc_cross_attention_dropout,
-               'enc_self_attention_dropout': namespace.enc_self_attention_dropout,
+               'enc_dropout': namespace.dropout,
+               'enc_cross_attention_dropout': namespace.dropout,
+               'enc_self_attention_dropout': namespace.dropout,
                'model_dec_widening_factor': namespace.model_dec_widening_factor,
                'model_dec_num_heads': namespace.model_dec_num_heads,
                'model_dec_qk_out_dim': namespace.model_dec_qk_out_dim,
-               'model_dec_dropout': namespace.model_dec_dropout,
-               'model_dec_attn_dropout': namespace.model_dec_attn_dropout,
+               'model_dec_dropout': namespace.dropout,
+               'model_dec_attn_dropout': namespace.dropout,
                'param_dec_widening_factor': namespace.param_dec_widening_factor,
                'param_dec_num_heads': namespace.param_dec_num_heads,
                'param_dec_qk_out_dim': namespace.param_dec_qk_out_dim,
-               'param_dec_dropout': namespace.param_dec_dropout,
-               'param_dec_attn_dropout': namespace.param_dec_attn_dropout,
+               'param_dec_dropout': namespace.dropout,
+               'param_dec_attn_dropout': namespace.dropout,
                'lr': namespace.lr,
                'batch_size': batch_size,
                'weight_decay': namespace.weight_decay,
@@ -109,12 +109,8 @@ if __name__ == '__main__':
                         type=int, metavar='enc_cross_attn_widening_factor')
     parser.add_argument('--enc_self_attn_widening_factor', default=2,
                         type=int, metavar='enc_self_attn_widening_factor')
-    parser.add_argument('--enc_dropout', default=0.2,
-                        type=float, metavar='enc_dropout')
-    parser.add_argument('--enc_cross_attention_dropout', default=0.2,
-                        type=float, metavar='enc_cross_attention_dropout')
-    parser.add_argument('--enc_self_attention_dropout', default=0.2,
-                        type=float, metavar='enc_self_attention_dropout')
+    parser.add_argument('--dropout', default=0.0,
+                        type=float, metavar='dropout')
     # model (clf) decoder args
     parser.add_argument('--model_dec_widening_factor', default=2,
                         type=int, metavar='model_dec_widening_factor')
@@ -122,10 +118,6 @@ if __name__ == '__main__':
                         type=int, metavar='model_decoder_num_heads')
     parser.add_argument('--model_dec_qk_out_dim', default=64,
                         type=int, metavar='model_dec_qk_out_dim')
-    parser.add_argument('--model_dec_dropout', default=0.2,
-                        type=float, metavar='model_dec_dropout')
-    parser.add_argument('--model_dec_attn_dropout', default=0.2,
-                        type=float, metavar='model_dec_attn_dropout')
     # param (reg) decoder args
     parser.add_argument('--param_dec_widening_factor', default=1,
                         type=int, metavar='param_dec_widening_factor')
@@ -133,17 +125,13 @@ if __name__ == '__main__':
                         type=int, metavar='param_decoder_num_heads')
     parser.add_argument('--param_dec_qk_out_dim', default=256,
                         type=int, metavar='param_dec_qk_out_dim')
-    parser.add_argument('--param_dec_dropout', default=0.2,
-                        type=float, metavar='param_dec_dropout')
-    parser.add_argument('--param_dec_attn_dropout', default=0.2,
-                        type=float, metavar='param_dec_attn_dropout')
     # datamodule args
     parser.add_argument('--subsample', default=None,
                         type=int, help='Subsample data (for debugging)', metavar='subsample')
     # lightning model args
     parser.add_argument('--n_bins', default=128,
                         type=int, help='n bins for input discretization.', metavar='n_bins')
-    parser.add_argument('--clf_weight', default=1.0,
+    parser.add_argument('--clf_weight', default=0.05,
                         type=float, metavar='clf_weight')
     parser.add_argument('--reg_weight', default=1.0,
                         type=float, metavar='reg_weight')
@@ -230,7 +218,7 @@ if __name__ == '__main__':
     strategy = DDPStrategy(
         find_unused_parameters=False) if namespace.strategy == 'ddp' else namespace.strategy
     ckpt_callback = ModelCheckpoint(
-        save_top_k=0, every_n_epochs=25)  # save_top_k=-1 for every epoch
+        save_top_k=1, every_n_epochs=25)  # save_top_k=-1 for every epoch
     log_every_n_steps = len(datamodule.train_dataset) // params['batch_size']
     trainer = pl.Trainer(
         gpus=namespace.gpus,
