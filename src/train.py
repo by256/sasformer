@@ -141,7 +141,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size_auto', default=0,
                         type=int, metavar='batch_size_auto')
     parser.add_argument('--lr', default=2e-3, type=float, metavar='lr')
-    parser.add_argument('--weight_decay', default=1e-8,
+    parser.add_argument('--weight_decay', default=0.0,
                         type=float, metavar='weight_decay')
     parser.add_argument('--max_epochs', default=200,
                         type=int, metavar='max_epochs')

@@ -48,7 +48,7 @@ class SASPerceiverIOModel(pl.LightningModule):
                  param_dec_attn_dropout: float = 0.2,
                  lr: float = 5e-4,
                  batch_size: int = 256,
-                 weight_decay: float = 1e-8,
+                 weight_decay: float = 0.0,
                  n_bins: int = 256,
                  clf_weight: float = 1.0,
                  reg_weight: float = 1.0,
