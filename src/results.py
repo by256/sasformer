@@ -1,12 +1,12 @@
 import argparse
+import json
 import matplotlib.pyplot as plt
 import numpy as np
 import os
 import pytorch_lightning as pl
+from sklearn.metrics import accuracy_score, confusion_matrix, ConfusionMatrixDisplay, mean_absolute_error
 import torch
 import yaml
-
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 
 from model import SASPerceiverIOModel
 from data import SASDataModule
@@ -28,6 +28,8 @@ if __name__ == '__main__':
                         type=int, metavar='batch_size')
     parser.add_argument('--accelerator', default='gpu',
                         type=str, metavar='accelerator')
+    parser.add_argument('--seed', default=None, type=int,
+                        help='Random seed.', metavar='seed')
     namespace = parser.parse_args()
 
     # define paths
@@ -35,19 +37,22 @@ if __name__ == '__main__':
     data_dir = os.path.join(root_dir, namespace.data_dir)
     results_dir = os.path.join(root_dir, namespace.results_dir)
 
-    datamodule = SASDataModule(data_dir=data_dir,
-                               sub_dir=namespace.sub_dir,
-                               batch_size=namespace.batch_size)
-    datamodule.setup()  # needed to initialze num_reg, num_clf and scalers
+    with open(os.path.join(data_dir, 'scales.json'), 'r') as f:
+        scales = json.load(f)
 
     device = 'cuda:0' if namespace.accelerator == 'gpu' else 'cpu'
     model = SASPerceiverIOModel.load_from_checkpoint(
         checkpoint_path=namespace.ckpt_path).to(device)
 
-    Iq_scaler = model.x_scaler
-    datamodule.Iq_scaler = Iq_scaler
-    reg_target_scaler = model.y_scaler
-    datamodule.reg_target_scaler = reg_target_scaler
+    datamodule = SASDataModule(data_dir=data_dir,
+                               sub_dir=namespace.sub_dir,
+                               n_bins=128,
+                               batch_size=namespace.batch_size,
+                               seed=namespace.seed)
+    datamodule.setup()  # needed to initialze num_reg, num_clf and scalers
+
+    datamodule.input_transformer = model.input_transformer
+    datamodule.target_transformer = model.target_transformer
 
     test_loader = datamodule.test_dataloader()
 
@@ -70,10 +75,14 @@ if __name__ == '__main__':
     y_pred_clf = np.concatenate(y_pred_clf)
     y_true_clf = np.concatenate(y_true_clf)
 
-    y_pred_reg = np.concatenate(
-        y_pred_reg) * reg_target_scaler.std[None, :] + reg_target_scaler.mean[None, :]
-    y_true_reg = np.concatenate(
-        y_true_reg) * reg_target_scaler.std[None, :] + reg_target_scaler.mean[None, :]
+    acc = accuracy_score(y_true_clf, y_pred_clf)
+    print(f'Accuracy: {acc:.3f}')
+
+    y_pred_reg = np.concatenate(y_pred_reg)
+    y_true_reg = np.concatenate(y_true_reg)
+
+    y_pred_reg = model.target_transformer.inverse_transform(y_pred_reg)
+    y_true_reg = model.target_transformer.inverse_transform(y_true_reg)
 
     # classification results
     C = confusion_matrix(y_true_clf, y_pred_clf)
@@ -98,5 +107,12 @@ if __name__ == '__main__':
         pred = y_pred_reg[:, idx]
         true = y_true_reg[:, idx]
         mae = np.nanmean(np.abs(pred - true))
-        print('{}:    {}    {}    MAE: {:.5f}'.format(str(idx).ljust(
-            3), model_name.ljust(30), param_name.ljust(20), mae))
+        if param_name in scales[model_name]:
+            scale = scales[model_name][param_name]
+        else:
+            scale = 'linear'
+        print('{}:    {}    {}    MAE: {:.5f}        {}'.format(str(idx).ljust(
+            3), model_name.ljust(30), param_name.ljust(20), mae, f'Scale: {scale}'.ljust(10)))
+
+    print(
+        f'Total MAE: {mean_absolute_error(y_pred_reg.ravel(), y_true_reg.ravel()):.3f}')
