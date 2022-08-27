@@ -192,7 +192,7 @@ if __name__ == '__main__':
         logger = WandbLogger(project=namespace.project_name,
                              save_dir=os.path.join(
                                  root_dir, namespace.log_dir),
-                             log_model='all')
+                             log_model=False)
 
     if namespace.from_yaml is not None:
         params = load_hparams_from_yaml(namespace.from_yaml)
@@ -225,7 +225,7 @@ if __name__ == '__main__':
         max_epochs=namespace.max_epochs,
         gradient_clip_val=namespace.gradient_clip_val,
         logger=logger,
-        precision=32,
+        precision=16,
         callbacks=[ckpt_callback],
         accumulate_grad_batches=namespace.accumulate_grad_batches,
         overfit_batches=namespace.overfit_batches,
