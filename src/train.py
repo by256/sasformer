@@ -225,7 +225,7 @@ if __name__ == '__main__':
         max_epochs=namespace.max_epochs,
         gradient_clip_val=namespace.gradient_clip_val,
         logger=logger,
-        precision=16,
+        precision=32,
         callbacks=[ckpt_callback],
         accumulate_grad_batches=namespace.accumulate_grad_batches,
         overfit_batches=namespace.overfit_batches,

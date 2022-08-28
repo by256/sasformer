@@ -148,7 +148,7 @@ class SASPerceiverIOModel(pl.LightningModule):
         optimizer = torch.optim.Adam(self.parameters(),
                                      lr=self.hparams.lr,
                                      weight_decay=self.hparams.weight_decay,
-                                     eps=1e-4  # for half-precision
+                                     #  eps=1e-4  # for half-precision
                                      )
         lr_scheduler = LinearWarmupCosineAnnealingLR(optimizer,
                                                      warmup_epochs=int(
@@ -184,6 +184,6 @@ class SASPerceiverIOModel(pl.LightningModule):
                 self.target_transformer.scaler.scale_).type_as(y)
 
         y = y*self.scaler_std_ + self.scaler_mu_
-        y = y.float()  # needed when training with half-precision
+        # y = y.float()  # needed when training with half-precision
         y[:, self.log_indices_] = torch.exp(y[:, self.log_indices_])
         return y
