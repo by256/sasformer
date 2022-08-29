@@ -201,6 +201,7 @@ if __name__ == '__main__':
         params = load_hparams_from_namespace(namespace)
     params['input_transformer'] = datamodule.input_transformer
     params['target_transformer'] = datamodule.target_transformer
+    params['lr'] = params['lr'] * namespace.gpus * namespace.num_nodes
 
     model = SASPerceiverIOModel(datamodule.num_clf,
                                 datamodule.num_reg,
