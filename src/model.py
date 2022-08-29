@@ -115,8 +115,8 @@ class SASPerceiverIOModel(pl.LightningModule):
         current_lr = self.trainer.optimizers[0].state_dict()[
             "param_groups"][0]["lr"]
 
-        # self.log_losses_and_metrics(
-        #     clf_loss, reg_loss, acc, mae, current_lr, mode='train')
+        self.log_losses_and_metrics(
+            clf_loss, reg_loss, acc, mae, current_lr, mode='train')
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -130,7 +130,7 @@ class SASPerceiverIOModel(pl.LightningModule):
         mae = multitask_l1(self.unscale_y(y_reg_pred),
                            self.unscale_y(y_reg_true))
 
-        # self.log_losses_and_metrics(clf_loss, reg_loss, acc, mae, mode='val')
+        self.log_losses_and_metrics(clf_loss, reg_loss, acc, mae, mode='val')
 
     def test_step(self, batch, batch_idx):
         x, y_clf_true, y_reg_true = batch
@@ -142,7 +142,7 @@ class SASPerceiverIOModel(pl.LightningModule):
         mae = multitask_l1(self.unscale_y(y_reg_pred),
                            self.unscale_y(y_reg_true))
 
-        # self.log_losses_and_metrics(clf_loss, reg_loss, acc, mae, mode='test')
+        self.log_losses_and_metrics(clf_loss, reg_loss, acc, mae, mode='test')
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(),

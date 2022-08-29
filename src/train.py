@@ -216,7 +216,8 @@ if __name__ == '__main__':
                        **params)
 
     strategy = DDPStrategy(
-        find_unused_parameters=False) if namespace.strategy == 'ddp' else namespace.strategy
+        find_unused_parameters=False,
+        static_graph=True) if namespace.strategy == 'ddp' else namespace.strategy
     ckpt_callback = ModelCheckpoint(
         save_top_k=1, save_last=True)  # save_top_k=-1 for every epoch
     log_every_n_steps = len(datamodule.train_dataset) // params['batch_size']
