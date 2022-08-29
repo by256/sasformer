@@ -1,16 +1,17 @@
-import os
-import sys
-import yaml
-import wandb
 import argparse
 import numpy as np
+import os
 import pandas as pd
-from typing import Union
-import torch
 import pytorch_lightning as pl
-from pytorch_lightning.strategies import DDPStrategy
-from pytorch_lightning.loggers.wandb import WandbLogger
 from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.loggers.wandb import WandbLogger
+from pytorch_lightning.profiler import SimpleProfiler
+from pytorch_lightning.strategies import DDPStrategy
+import sys
+import torch
+from typing import Union
+import wandb
+import yaml
 
 from model import SASPerceiverIOModel
 from data import SASDataModule
@@ -218,11 +219,13 @@ if __name__ == '__main__':
     strategy = DDPStrategy(
         find_unused_parameters=False,
         static_graph=True,
-        gradient_as_bucket_view=True
+        # gradient_as_bucket_view=True
     ) if namespace.strategy == 'ddp' else namespace.strategy
     ckpt_callback = ModelCheckpoint(
         save_top_k=1, save_last=True)  # save_top_k=-1 for every epoch
-    log_every_n_steps = len(datamodule.train_dataset) // params['batch_size']
+    profiler = SimpleProfiler(filename='profile')
+    # log_every_n_steps = len(datamodule.train_dataset) // params['batch_size']
+
     trainer = pl.Trainer(
         gpus=namespace.gpus,
         max_epochs=namespace.max_epochs,
@@ -236,8 +239,8 @@ if __name__ == '__main__':
         strategy=strategy,
         num_nodes=namespace.num_nodes,
         detect_anomaly=bool(namespace.detect_anomaly),
-        log_every_n_steps=log_every_n_steps,
-        profiler='simple'
+        # log_every_n_steps=log_every_n_steps,
+        profiler=profiler
     )
     trainer.fit(model,
                 datamodule=datamodule,
