@@ -222,13 +222,13 @@ class SASDataModule(pl.LightningDataModule):
             test, input_transformer, target_transformer)
 
     def train_dataloader(self):
-        return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True, num_workers=1, pin_memory=True)
+        return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True)
 
     def val_dataloader(self):
-        return DataLoader(self.val_dataset, batch_size=self.batch_size, num_workers=1, pin_memory=True) if self.val_size > 0.0 else None
+        return DataLoader(self.val_dataset, batch_size=self.batch_size) if self.val_size > 0.0 else None
 
     def test_dataloader(self):
-        return DataLoader(self.test_dataset, batch_size=self.batch_size, num_workers=1, pin_memory=True)
+        return DataLoader(self.test_dataset, batch_size=self.batch_size)
 
     def predict_dataloader(self):
         raise NotImplementedError
