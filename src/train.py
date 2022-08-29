@@ -11,8 +11,6 @@ import pytorch_lightning as pl
 from pytorch_lightning.strategies import DDPStrategy
 from pytorch_lightning.loggers.wandb import WandbLogger
 from pytorch_lightning.callbacks import ModelCheckpoint
-import horovod.torch as hvd
-from horovod.torch import mpi_lib_v2 as mpi_lib
 
 from model import SASPerceiverIOModel
 from data import SASDataModule
