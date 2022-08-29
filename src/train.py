@@ -223,7 +223,7 @@ if __name__ == '__main__':
         # gradient_as_bucket_view=True
     ) if namespace.strategy == 'ddp' else namespace.strategy
     ckpt_callback = ModelCheckpoint(
-        monitor='total_loss', save_top_k=1, save_last=True)
+        monitor='val/total_loss', save_top_k=1, save_last=True)
     profiler = SimpleProfiler(filename='profile')
 
     trainer = pl.Trainer(
