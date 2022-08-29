@@ -234,7 +234,6 @@ if __name__ == '__main__':
         num_nodes=namespace.num_nodes,
         detect_anomaly=bool(namespace.detect_anomaly),
         log_every_n_steps=log_every_n_steps,
-        flush_logs_every_n_steps=1e12  # this prevents training from freezing at 100 steps
     )
     trainer.fit(model,
                 datamodule=datamodule,
