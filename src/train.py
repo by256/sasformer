@@ -223,9 +223,8 @@ if __name__ == '__main__':
         # gradient_as_bucket_view=True
     ) if namespace.strategy == 'ddp' else namespace.strategy
     ckpt_callback = ModelCheckpoint(
-        save_top_k=1, save_last=True)  # save_top_k=-1 for every epoch
+        monitor='total_loss', save_top_k=1, save_last=True)
     profiler = SimpleProfiler(filename='profile')
-    # log_every_n_steps = len(datamodule.train_dataset) // params['batch_size']
 
     trainer = pl.Trainer(
         gpus=namespace.gpus,
@@ -240,7 +239,6 @@ if __name__ == '__main__':
         strategy=strategy,
         num_nodes=namespace.num_nodes,
         detect_anomaly=bool(namespace.detect_anomaly),
-        # log_every_n_steps=log_every_n_steps,
         profiler=profiler
     )
     trainer.fit(model,
