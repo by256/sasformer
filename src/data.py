@@ -222,7 +222,7 @@ class SASDataModule(pl.LightningDataModule):
             test, input_transformer, target_transformer)
 
     def train_dataloader(self):
-        return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True)
+        return DataLoader(self.train_dataset, batch_size=self.batch_size)
 
     def val_dataloader(self):
         return DataLoader(self.val_dataset, batch_size=self.batch_size) if self.val_size > 0.0 else None

@@ -61,9 +61,10 @@ class SASPerceiverIOModel(pl.LightningModule):
         # scalers/preprocessors only for inference
         self.input_transformer = input_transformer
         self.target_transformer = target_transformer
-        self.log_indices_ = None
-        self.scaler_mu_ = None
-        self.scaler_std_ = None
+        self._target_transformer_buffers_registered = False
+        # self.log_indices_ = None
+        # self.scaler_mu_ = None
+        # self.scaler_std_ = None
 
         # metrics
         self.num_classes = num_classes
@@ -175,13 +176,17 @@ class SASPerceiverIOModel(pl.LightningModule):
                      on_step=False, rank_zero_only=True)
 
     def unscale_y(self, y):
-        if self.log_indices_ is None:
-            self.log_indices_ = torch.Tensor(
+        if not self._target_transformer_buffers_registered:
+            log_indices_ = torch.Tensor(
                 self.target_transformer.log_indices).type_as(y).long()
-            self.scaler_mu_ = torch.Tensor(
+            self.register_buffer('log_indices_', log_indices_)
+            scaler_mu_ = torch.Tensor(
                 self.target_transformer.scaler.mean_).type_as(y)
-            self.scaler_std_ = torch.Tensor(
+            self.register_buffer('scaler_mu_', scaler_mu_)
+            scaler_std_ = torch.Tensor(
                 self.target_transformer.scaler.scale_).type_as(y)
+            self.register_buffer('scaler_std_', scaler_std_)
+            self._target_transformer_buffers_registered = True
 
         y = y*self.scaler_std_ + self.scaler_mu_
         # y = y.float()  # needed when training with half-precision
