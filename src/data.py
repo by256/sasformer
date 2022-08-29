@@ -79,14 +79,12 @@ class IqTransformer(BaseEstimator, TransformerMixin):
     def fit(self, x):
         x = self.square_quotient_log.transform(x)
         self.discretizer.fit(np.reshape(x, (-1, 1)))
-        # self.discretizer.fit(x)
         return self
 
     def transform(self, x):
         x = self.square_quotient_log.transform(x)
         x = np.reshape(self.discretizer.transform(
             np.reshape(x, (-1, 1))), (-1, x.shape[-1]))
-        # x = self.discretizer.transform(x)
         return x
 
     def square_quotient_log_transform_(self, x):
@@ -116,7 +114,6 @@ class TargetTransformer(BaseEstimator, TransformerMixin):
     def inverse_transform(self, x):
         x = copy.deepcopy(x)
         x = self.scaler.inverse_transform(x)
-        # x[:, self.log_indices] = 10.0**x[:, self.log_indices]
         x[:, self.log_indices] = np.exp(x[:, self.log_indices])
         return x
 
@@ -225,13 +222,13 @@ class SASDataModule(pl.LightningDataModule):
             test, input_transformer, target_transformer)
 
     def train_dataloader(self):
-        return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True)
+        return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True, pin_memory=True)
 
     def val_dataloader(self):
-        return DataLoader(self.val_dataset, batch_size=self.batch_size) if self.val_size > 0.0 else None
+        return DataLoader(self.val_dataset, batch_size=self.batch_size, pin_memory=True) if self.val_size > 0.0 else None
 
     def test_dataloader(self):
-        return DataLoader(self.test_dataset, batch_size=self.batch_size)
+        return DataLoader(self.test_dataset, batch_size=self.batch_size, pin_memory=True)
 
     def predict_dataloader(self):
         raise NotImplementedError
