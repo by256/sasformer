@@ -53,7 +53,7 @@ def raw_data_to_df(data_dir: str, sub_dir: str = 'large', step: int = 2) -> pd.D
 
         n_model_rows = model_I_q.shape[0]
         for i in range(n_model_rows):
-            I_q = {'I(q={})'.format(q_values[j])                   : model_I_q[i, j] for j in range(n_q)}
+            I_q = {'I(q={})'.format(q_values[j]): model_I_q[i, j] for j in range(n_q)}
             clf_labels = {'model': model_name, 'model_label': model_idx}
             reg_targets = {param_names[j]: param_values[i, j]
                            for j in range(len(param_names))}
@@ -64,31 +64,40 @@ def raw_data_to_df(data_dir: str, sub_dir: str = 'large', step: int = 2) -> pd.D
 
 
 def quotient_transform(x):
-    x = np.concatenate([x[:, 0, None], x], axis=1)
+    # x = np.concatenate([x[:, 0, None], x], axis=1)
     return x[:, 1:] / x[:, :-1]
 
 
 class IqTransformer(BaseEstimator, TransformerMixin):
     def __init__(self, n_bins=256):
         self.n_bins = n_bins
-        self.square_quotient_log = FunctionTransformer(
-            self.square_quotient_log_transform_)
+        self.quotient_log = FunctionTransformer(
+            self.quotient_log_transform_)
         self.discretizer = KBinsDiscretizer(
-            n_bins, encode='ordinal', strategy='quantile', subsample=None)
+            n_bins,
+            encode='ordinal',
+            strategy='quantile',
+            subsample=None)
 
     def fit(self, x):
-        x = self.square_quotient_log.transform(x)
-        self.discretizer.fit(np.reshape(x, (-1, 1)))
+        x = self.quotient_log.transform(x)
+        self.discretizer.fit(x)
+        # self.discretizer.fit(np.reshape(x, (-1, 1)))
         return self
 
     def transform(self, x):
-        x = self.square_quotient_log.transform(x)
-        x = np.reshape(self.discretizer.transform(
-            np.reshape(x, (-1, 1))), (-1, x.shape[-1]))
+        x = self.quotient_log.transform(x)
+        x = self.discretizer.transform(x)
+        # x = np.reshape(self.discretizer.transform(
+        #     np.reshape(x, (-1, 1))), (-1, x.shape[-1]))
         return x
 
-    def square_quotient_log_transform_(self, x):
-        return np.log(quotient_transform(x**2))
+    def quotient_log_transform_(self, x):
+        return np.log(quotient_transform(x))
+
+    def get_discretizer_bins_(self, x):
+        x = self.quotient_log_transform_(x)
+        return np.array([len(np.histogram_bin_edges(x[:, i], bins='fd')) for i in range(x.shape[-1])])
 
 
 class TargetTransformer(BaseEstimator, TransformerMixin):

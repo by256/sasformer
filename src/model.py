@@ -26,6 +26,7 @@ class SASPerceiverIOModel(pl.LightningModule):
     def __init__(self,
                  num_classes: int,
                  num_reg_outputs: int,
+                 seq_len=255,
                  latent_dim: int = 256,
                  num_latents: int = 64,
                  enc_num_blocks: int = 4,
@@ -62,10 +63,6 @@ class SASPerceiverIOModel(pl.LightningModule):
         self.input_transformer = input_transformer
         self.target_transformer = target_transformer
         self._target_transformer_buffers_registered = False
-        # self.log_indices_ = None
-        # self.scaler_mu_ = None
-        # self.scaler_std_ = None
-
         # metrics
         self.num_classes = num_classes
         self.save_hyperparameters(ignore=['model'])
@@ -98,7 +95,7 @@ class SASPerceiverIOModel(pl.LightningModule):
                                              dropout=param_dec_dropout,
                                              attention_dropout=param_dec_attn_dropout)
         self.perceiver = SASPerceiverIO(
-            self.encoder, self.sas_model_decoder, self.sas_param_decoder, n_bins)
+            self.encoder, self.sas_model_decoder, self.sas_param_decoder, n_bins, seq_len)
 
     def forward(self, x):
         return self.perceiver(x)
@@ -149,7 +146,6 @@ class SASPerceiverIOModel(pl.LightningModule):
         optimizer = torch.optim.Adam(self.parameters(),
                                      lr=self.hparams.lr,
                                      weight_decay=self.hparams.weight_decay,
-                                     #  eps=1e-4  # for half-precision
                                      )
         lr_scheduler = LinearWarmupCosineAnnealingLR(optimizer,
                                                      warmup_epochs=int(
@@ -189,6 +185,5 @@ class SASPerceiverIOModel(pl.LightningModule):
             self._target_transformer_buffers_registered = True
 
         y = y*self.scaler_std_ + self.scaler_mu_
-        # y = y.float()  # needed when training with half-precision
         y[:, self.log_indices_] = torch.exp(y[:, self.log_indices_])
         return y

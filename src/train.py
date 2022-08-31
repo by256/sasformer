@@ -98,22 +98,22 @@ if __name__ == '__main__':
                         type=int, metavar='num_latents')
     parser.add_argument('--latent_dim', default=256,
                         type=int, metavar='latent_dim')
-    parser.add_argument('--enc_num_blocks', default=4,
+    parser.add_argument('--enc_num_blocks', default=1,
                         type=int, metavar='enc_num_blocks')
-    parser.add_argument('--enc_num_self_attn_per_block', default=5,
+    parser.add_argument('--enc_num_self_attn_per_block', default=6,
                         type=int, metavar='encoder_num_self_attn_per_block')
-    parser.add_argument('--enc_num_self_attn_heads', default=1,
+    parser.add_argument('--enc_num_self_attn_heads', default=4,
                         type=int, metavar='encoder_num_self_attn_heads')
     parser.add_argument('--enc_num_cross_attn_heads', default=2,
                         type=int, metavar='enc_num_cross_attn_heads')
     parser.add_argument('--enc_cross_attn_widening_factor', default=1,
                         type=int, metavar='enc_cross_attn_widening_factor')
-    parser.add_argument('--enc_self_attn_widening_factor', default=2,
+    parser.add_argument('--enc_self_attn_widening_factor', default=3,
                         type=int, metavar='enc_self_attn_widening_factor')
     parser.add_argument('--dropout', default=0.0,
                         type=float, metavar='dropout')
     # model (clf) decoder args
-    parser.add_argument('--model_dec_widening_factor', default=2,
+    parser.add_argument('--model_dec_widening_factor', default=1,
                         type=int, metavar='model_dec_widening_factor')
     parser.add_argument('--model_dec_num_heads', default=1,
                         type=int, metavar='model_decoder_num_heads')
@@ -122,7 +122,7 @@ if __name__ == '__main__':
     # param (reg) decoder args
     parser.add_argument('--param_dec_widening_factor', default=1,
                         type=int, metavar='param_dec_widening_factor')
-    parser.add_argument('--param_dec_num_heads', default=1,
+    parser.add_argument('--param_dec_num_heads', default=2,
                         type=int, metavar='param_decoder_num_heads')
     parser.add_argument('--param_dec_qk_out_dim', default=256,
                         type=int, metavar='param_dec_qk_out_dim')
@@ -130,9 +130,9 @@ if __name__ == '__main__':
     parser.add_argument('--subsample', default=None,
                         type=int, help='Subsample data (for debugging)', metavar='subsample')
     # lightning model args
-    parser.add_argument('--n_bins', default=128,
+    parser.add_argument('--n_bins', default=256,
                         type=int, help='n bins for input discretization.', metavar='n_bins')
-    parser.add_argument('--clf_weight', default=0.05,
+    parser.add_argument('--clf_weight', default=0.1,
                         type=float, metavar='clf_weight')
     parser.add_argument('--reg_weight', default=1.0,
                         type=float, metavar='reg_weight')
@@ -141,7 +141,7 @@ if __name__ == '__main__':
                         type=int, metavar='batch_size')
     parser.add_argument('--batch_size_auto', default=0,
                         type=int, metavar='batch_size_auto')
-    parser.add_argument('--lr', default=2e-3, type=float, metavar='lr')
+    parser.add_argument('--lr', default=8e-4, type=float, metavar='lr')
     parser.add_argument('--weight_decay', default=0.0,
                         type=float, metavar='weight_decay')
     parser.add_argument('--max_epochs', default=200,
@@ -220,7 +220,6 @@ if __name__ == '__main__':
     strategy = DDPStrategy(
         find_unused_parameters=False,
         static_graph=True,
-        # gradient_as_bucket_view=True
     ) if namespace.strategy == 'ddp' else namespace.strategy
     ckpt_callback = ModelCheckpoint(
         monitor='val/total_loss', save_top_k=1, save_last=True)
