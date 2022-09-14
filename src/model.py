@@ -104,7 +104,7 @@ class SASPerceiverIOModel(pl.LightningModule):
         x, y_clf_true, y_reg_true = batch
         y_clf_pred, y_reg_pred = self(x)
         clf_loss = F.cross_entropy(y_clf_pred, y_clf_true)
-        reg_loss = multitask_l1(y_reg_pred, y_reg_true)
+        reg_loss = multitask_mse(y_reg_pred, y_reg_true)
         loss = self.clf_weight*clf_loss + self.reg_weight*reg_loss
         acc = accuracy(torch.argmax(y_clf_pred, dim=1),
                        y_clf_true, num_classes=self.num_classes)
@@ -121,7 +121,7 @@ class SASPerceiverIOModel(pl.LightningModule):
         x, y_clf_true, y_reg_true = batch
         y_clf_pred, y_reg_pred = self(x)
         clf_loss = F.cross_entropy(y_clf_pred, y_clf_true)
-        reg_loss = multitask_l1(y_reg_pred, y_reg_true)
+        reg_loss = multitask_mse(y_reg_pred, y_reg_true)
         loss = self.clf_weight*clf_loss + self.reg_weight*reg_loss
         acc = accuracy(torch.argmax(y_clf_pred, dim=1),
                        y_clf_true, num_classes=self.num_classes)
@@ -134,7 +134,7 @@ class SASPerceiverIOModel(pl.LightningModule):
         x, y_clf_true, y_reg_true = batch
         y_clf_pred, y_reg_pred = self(x)
         clf_loss = F.cross_entropy(y_clf_pred, y_clf_true)
-        reg_loss = multitask_l1(y_reg_pred, y_reg_true)
+        reg_loss = multitask_mse(y_reg_pred, y_reg_true)
         acc = accuracy(torch.argmax(y_clf_pred, dim=1),
                        y_clf_true, num_classes=self.num_classes)
         mae = multitask_l1(self.unscale_y(y_reg_pred),

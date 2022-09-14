@@ -31,7 +31,7 @@ def objective(trial, namespace, root_dir, data_dir):
         'lr': 0.001,   # placeholder
         # 'lr': trial.suggest_loguniform('lr', 5e-4, 1e-2),
         # 'batch_size': trial.suggest_categorical('latent_dim', [32, 64, 128, 256]),
-        'n_bins': trial.suggest_categorical('n_bins', [64, 128, 256, 512]),
+        'n_bins': trial.suggest_categorical('n_bins', [64, 128, 256]),
         'num_latents': trial.suggest_categorical('num_latents', [64, 128, 256]),
         'latent_dim': trial.suggest_categorical('latent_dim', [64, 128, 256, 512]),
         # encoder args
