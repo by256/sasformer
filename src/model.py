@@ -175,13 +175,14 @@ class SASPerceiverIOModel(pl.LightningModule):
         if not self._target_transformer_buffers_registered:
             log_indices_ = torch.Tensor(
                 self.target_transformer.log_indices).type_as(y).long()
-            self.register_buffer('log_indices_', log_indices_)
+            self.register_buffer(
+                'log_indices_', log_indices_, persistent=False)
             scaler_mu_ = torch.Tensor(
                 self.target_transformer.scaler.mean_).type_as(y)
-            self.register_buffer('scaler_mu_', scaler_mu_)
+            self.register_buffer('scaler_mu_', scaler_mu_, persistent=False)
             scaler_std_ = torch.Tensor(
                 self.target_transformer.scaler.scale_).type_as(y)
-            self.register_buffer('scaler_std_', scaler_std_)
+            self.register_buffer('scaler_std_', scaler_std_, persistent=False)
             self._target_transformer_buffers_registered = True
 
         y = y*self.scaler_std_ + self.scaler_mu_
