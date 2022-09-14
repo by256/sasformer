@@ -27,8 +27,8 @@ def clear_cache():
 def objective(trial, namespace, root_dir, data_dir):
     dropout = trial.suggest_float('dropout', 0.0, 0.5, step=0.05)
     params_i = {
-        'batch_size': 1024,
-        'lr': 2e-3,
+        'batch_size': 1,  # placeholder
+        'lr': 0.001,   # placeholder
         # 'lr': trial.suggest_loguniform('lr', 5e-4, 1e-2),
         # 'batch_size': trial.suggest_categorical('latent_dim', [32, 64, 128, 256]),
         'n_bins': trial.suggest_categorical('n_bins', [64, 128, 256, 512]),
@@ -73,10 +73,12 @@ def objective(trial, namespace, root_dir, data_dir):
                                 target_transformer=datamodule.target_transformer,
                                 **params_i)
 
-    # batch_size = estimate_batch_size(model, datamodule)
-    # batch_size = 1024
-    # params_i['batch_size'] = batch_size
-    # datamodule.batch_size = batch_size
+    batch_size = estimate_batch_size(model, datamodule)
+    if batch_size > 2048:
+        batch_size = 2048
+    params_i['batch_size'] = batch_size
+    datamodule.batch_size = batch_size
+    params_i['lr'] = 7.8125e-7 * batch_size / namespace.gpus  # sorcery
 
     # annoying but necessary for correct wandb batch size logging
     model.__init__(datamodule.num_clf,

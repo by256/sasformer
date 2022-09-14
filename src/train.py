@@ -17,14 +17,13 @@ from model import SASPerceiverIOModel
 from data import SASDataModule
 
 
-def estimate_batch_size(model, datamodule):
-    input_size = sys.getsizeof(
-        datamodule.train_dataset[0][0].shape[0]) * 1e-6
-    model_size = model.model_size  # Mb
+def estimate_batch_size(model, single_gpu=True, n_opt_moments=2):
+    m = pl.utilities.memory.get_model_size_mb(model)
     gpu_mem = torch.cuda.get_device_properties(0).total_memory * 1e-6
-    batch_size_exponent = np.floor(
-        np.log2(gpu_mem / (input_size + model_size))) - 1.0
-    return int(2**batch_size_exponent)
+    d = 1 if single_gpu else 2
+    b = (gpu_mem - m - d*m - n_opt_moments*m) / m
+    b_exponent = np.floor(np.log2(b)) - 1
+    return int(2**b_exponent)
 
 
 def load_hparams_from_yaml(path):
@@ -157,6 +156,8 @@ if __name__ == '__main__':
                         type=int, metavar='overfit_batches')
     parser.add_argument('--detect_anomaly', default=1,
                         type=int, metavar='detect_anomaly')
+    parser.add_argument('--profile', default=0,
+                        type=int, metavar='profile')
     parser.add_argument('--deterministic', default=1,
                         type=int, metavar='deterministic')
     parser.add_argument('--strategy', default=None, type=str,
@@ -209,7 +210,8 @@ if __name__ == '__main__':
 
     if namespace.batch_size_auto:
         # estimate batch size
-        batch_size = estimate_batch_size(model, datamodule)
+        single_gpu = namepsace.gpus == 1
+        batch_size = estimate_batch_size(model, single_gpu)
         params['batch_size'] = batch_size
         datamodule.batch_size = batch_size
         # annoying but necessary for correct wandb batch size logging
@@ -223,7 +225,8 @@ if __name__ == '__main__':
     ) if namespace.strategy == 'ddp' else namespace.strategy
     ckpt_callback = ModelCheckpoint(
         monitor='val/total_loss', save_top_k=1, save_last=True)
-    profiler = SimpleProfiler(filename='profile')
+    profiler = SimpleProfiler(filename='profile') if bool(
+        namespace.profile) else None
 
     trainer = pl.Trainer(
         gpus=namespace.gpus,
