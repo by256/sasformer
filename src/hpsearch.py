@@ -103,7 +103,6 @@ def objective(trial, namespace, root_dir, data_dir):
                          strategy=strategy,
                          num_nodes=namespace.num_nodes,
                          detect_anomaly=False,
-                         flush_logs_every_n_steps=1e12  # this prevents training from freezing at 100 steps
                          )
     trainer.fit(model,
                 datamodule=datamodule)
