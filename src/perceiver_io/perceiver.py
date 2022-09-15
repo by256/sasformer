@@ -20,7 +20,7 @@ class TokenAndPositionEmbedding(nn.Module):
     def forward(self, x):
         if self.pos_idxs.device != x.device:
             self.pos_idxs = self.pos_idxs.to(x.device)
-        # #TODO: remove token squeeze after updating data
+        # TODO: remove token squeeze after updating data
         token = self.token_embedding(x).squeeze()
         pos = self.pos_embedding(self.pos_idxs.repeat(x.shape[0], 1))
         return token + pos
