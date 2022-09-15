@@ -167,6 +167,8 @@ class SASPerceiverIOModel(pl.LightningModule):
                  on_epoch=True, on_step=False, prog_bar=True)  # torchmetrics doesn't need sync_dist
         self.log(f'{mode}/mae', mae,
                  on_epoch=True, on_step=False, prog_bar=True, sync_dist=True)
+        self.log(f'{mode}/es_metric', (mae/370)+(1-acc),
+                 on_epoch=True, on_step=False, sync_dist=True)
         if lr is not None and mode == 'train':
             self.log('trainer/lr', lr, on_epoch=True,
                      on_step=False, rank_zero_only=True)
