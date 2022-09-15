@@ -9,12 +9,11 @@ import numpy as np
 import torch
 import pytorch_lightning as pl
 from pytorch_lightning.tuner.tuning import Tuner
-from pytorch_lightning.strategies import DDPStrategy
 from pytorch_lightning.loggers.wandb import WandbLogger
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 
 from data import SASDataModule
-from train import estimate_batch_size
+# from train import estimate_batch_size
 from model import SASPerceiverIOModel
 
 
@@ -65,6 +64,7 @@ def objective(trial, namespace, root_dir, data_dir):
                                n_bins=params_i['n_bins'],
                                batch_size=params_i['batch_size'],
                                val_size=namespace.val_size,
+                               subsample=namespace.subsample,
                                seed=namespace.seed)
     datamodule.setup()  # needed to initialze num_reg, num_clf and scalers
 
@@ -74,25 +74,9 @@ def objective(trial, namespace, root_dir, data_dir):
                                 target_transformer=datamodule.target_transformer,
                                 **params_i)
 
-    batch_size = estimate_batch_size(model, datamodule)
-    if batch_size > 2048:
-        batch_size = 2048
-    params_i['batch_size'] = batch_size
-    datamodule.batch_size = batch_size
-    params_i['lr'] = 7.8125e-7 * batch_size / namespace.gpus  # sorcery
-
-    # annoying but necessary for correct wandb batch size logging
-    model.__init__(datamodule.num_clf,
-                   datamodule.num_reg,
-                   input_transformer=datamodule.input_transformer,
-                   target_transformer=datamodule.target_transformer,
-                   **params_i)
-
     logger = WandbLogger(project=namespace.project_name,
                          save_dir=os.path.join(root_dir, namespace.log_dir))
 
-    strategy = DDPStrategy(
-        find_unused_parameters=False) if namespace.strategy == 'ddp' else namespace.strategy
     early_stopping = EarlyStopping(monitor='val/es_metric', patience=15)
     trainer = pl.Trainer(gpus=namespace.gpus,
                          max_epochs=namespace.max_epochs,
@@ -101,10 +85,41 @@ def objective(trial, namespace, root_dir, data_dir):
                          precision=32,
                          callbacks=[early_stopping],
                          accumulate_grad_batches=namespace.accumulate_grad_batches,
-                         strategy=strategy,
+                         strategy=namespace.strategy,
                          num_nodes=namespace.num_nodes,
                          detect_anomaly=False,
                          )
+
+    # find largest batch_size that fits in memory
+    tuner = Tuner(trainer)
+    batch_size = tuner.scale_batch_size(model,
+                                        datamodule=datamodule,
+                                        mode='binsearch',
+                                        init_val=32,
+                                        max_trials=6)
+    if batch_size > 2048:
+        batch_size = 2048
+    params_i['batch_size'] = batch_size
+    model.batch_size = batch_size
+    datamodule.batch_size = batch_size
+    # find lr
+    lr_finder = tuner.lr_find(model,
+                              datamodule=datamodule,
+                              min_lr=5e-5,
+                              max_lr=5e-3,
+                              num_training=20,
+                              mode='linear',
+                              early_stop_threshold=None)
+    params_i['lr'] = lr_finder.suggestion()
+    # params_i['lr'] = 2 * 7.8125e-7 * batch_size / namespace.gpus  # sorcery
+    print('params_i[\'lr\']', params_i['lr'])
+    # annoying but necessary for correct wandb batch size logging
+    model.__init__(datamodule.num_clf,
+                   datamodule.num_reg,
+                   input_transformer=datamodule.input_transformer,
+                   target_transformer=datamodule.target_transformer,
+                   **params_i)
+
     trainer.fit(model,
                 datamodule=datamodule)
     val_results = trainer.validate(model, datamodule=datamodule)[0]
@@ -112,7 +127,6 @@ def objective(trial, namespace, root_dir, data_dir):
     del logger
     del datamodule
     del model
-    del strategy
     del trainer
     clear_cache()
     wandb.finish()
@@ -131,6 +145,8 @@ if __name__ == '__main__':
                         help='Proportion of data to split for validation', metavar='val_size')
     parser.add_argument('--log_dir', default='../logs/', type=str,
                         help='Logging directory for Tensorboard/WandB', metavar='log_dir')
+    parser.add_argument('--subsample', default=None,
+                        type=int, help='Subsample data (for debugging)', metavar='subsample')
     parser.add_argument('--max_epochs', default=200,
                         type=int, metavar='max_epochs')
     parser.add_argument('--gradient_clip_val', default=1.0,
