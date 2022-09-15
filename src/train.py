@@ -17,9 +17,10 @@ from model import SASPerceiverIOModel
 from data import SASDataModule
 
 
-def estimate_batch_size(model, single_gpu=True, n_opt_moments=2):
+def estimate_batch_size(model, single_gpu=True, n_opt_moments=2, buffer=1000):
     m = pl.utilities.memory.get_model_size_mb(model)
     gpu_mem = torch.cuda.get_device_properties(0).total_memory * 1e-6
+    gpu_mem = gpu_mem - buffer
     d = 1 if single_gpu else 2
     b = (gpu_mem - m - d*m - n_opt_moments*m) / m
     b_exponent = np.floor(np.log2(b)) - 1
@@ -210,8 +211,9 @@ if __name__ == '__main__':
 
     if namespace.batch_size_auto:
         # estimate batch size
-        single_gpu = namepsace.gpus == 1
+        single_gpu = namespace.gpus == 1
         batch_size = estimate_batch_size(model, single_gpu)
+        print('batch_size', batch_size)
         params['batch_size'] = batch_size
         datamodule.batch_size = batch_size
         # annoying but necessary for correct wandb batch size logging

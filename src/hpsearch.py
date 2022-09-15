@@ -35,7 +35,8 @@ def objective(trial, namespace, root_dir, data_dir):
         'num_latents': trial.suggest_categorical('num_latents', [64, 128, 256]),
         'latent_dim': trial.suggest_categorical('latent_dim', [64, 128, 256, 512]),
         # encoder args
-        'enc_num_self_attn_per_block': trial.suggest_int('enc_num_self_attn_per_block', 2, 6),
+        'enc_num_blocks': trial.suggest_int('enc_num_blocks', 1, 5),
+        'enc_num_self_attn_per_block': trial.suggest_int('enc_num_self_attn_per_block', 2, 4),
         'enc_num_cross_attn_heads': trial.suggest_categorical('enc_num_cross_attn_heads', [1, 2, 4]),
         'enc_num_self_attn_heads': trial.suggest_categorical('enc_num_self_attn_heads', [1, 2, 4]),
         'enc_cross_attn_widening_factor': trial.suggest_int('enc_cross_attn_widening_factor', 1, 2),
@@ -92,7 +93,7 @@ def objective(trial, namespace, root_dir, data_dir):
 
     strategy = DDPStrategy(
         find_unused_parameters=False) if namespace.strategy == 'ddp' else namespace.strategy
-    early_stopping = EarlyStopping(monitor='val/total_loss', patience=15)
+    early_stopping = EarlyStopping(monitor='val/es_metric', patience=15)
     trainer = pl.Trainer(gpus=namespace.gpus,
                          max_epochs=namespace.max_epochs,
                          gradient_clip_val=namespace.gradient_clip_val,
