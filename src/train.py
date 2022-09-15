@@ -20,9 +20,9 @@ from data import SASDataModule
 def estimate_batch_size(model, single_gpu=True, n_opt_moments=2, buffer=2500):
     m = pl.utilities.memory.get_model_size_mb(model)
     gpu_mem = torch.cuda.get_device_properties(0).total_memory * 1e-6
-    gpu_mem = gpu_mem - buffer
+    gpu_mem = gpu_mem * 0.8
     d = 1 if single_gpu else 2
-    b = (gpu_mem - 2*m - d*m - n_opt_moments*m) / m
+    b = (gpu_mem - m - d*m - n_opt_moments*m) / m
     b_exponent = np.floor(np.log2(b)) - 1
     return int(2**b_exponent)
 
