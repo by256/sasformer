@@ -34,7 +34,6 @@ def find_batch_size_one_gpu(params_i, datamodule):
                          num_nodes=namespace.num_nodes,
                          enable_checkpointing=False,
                          detect_anomaly=False)
-    # find largest batch_size that fits in memory
     tuner = Tuner(trainer)
     batch_size = tuner.scale_batch_size(model,
                                         datamodule=datamodule,
@@ -50,15 +49,11 @@ def find_batch_size_one_gpu(params_i, datamodule):
 def objective(trial, namespace, root_dir, data_dir):
     dropout = trial.suggest_float('dropout', 0.0, 0.5, step=0.05)
     params_i = {
-        'batch_size': 1,  # placeholder
-        'lr': 0.001,   # placeholder
-        # 'lr': trial.suggest_loguniform('lr', 5e-4, 1e-2),
-        # 'batch_size': trial.suggest_categorical('latent_dim', [32, 64, 128, 256]),
         'n_bins': trial.suggest_categorical('n_bins', [64, 128, 256]),
         'num_latents': trial.suggest_categorical('num_latents', [32, 64, 128]),
-        'latent_dim': trial.suggest_categorical('latent_dim', [64, 128, 256, 512]),
+        'latent_dim': trial.suggest_categorical('latent_dim', [128, 256, 512, 1024]),
         # encoder args
-        'enc_num_blocks': trial.suggest_int('enc_num_blocks', 2, 8),
+        'enc_num_blocks': trial.suggest_int('enc_num_blocks', 2, 12),
         'enc_num_self_attn_per_block': trial.suggest_int('enc_num_self_attn_per_block', 1, 4),
         'enc_num_cross_attn_heads': trial.suggest_categorical('enc_num_cross_attn_heads', [1, 2, 4, 8]),
         'enc_num_self_attn_heads': trial.suggest_categorical('enc_num_self_attn_heads', [1, 2, 4, 8]),
@@ -92,6 +87,12 @@ def objective(trial, namespace, root_dir, data_dir):
                                seed=namespace.seed)
     datamodule.setup()  # needed to initialze num_reg, num_clf and scalers
 
+    # find largest batch_size that fits in memory
+    batch_size = find_batch_size_one_gpu(params_i, datamodule)
+    params_i['batch_size'] = batch_size
+    datamodule.batch_size = batch_size
+    params_i['lr'] = 2 * 7.8125e-7 * batch_size / namespace.gpus  # sorcery
+
     model = SASPerceiverIOModel(datamodule.num_clf,
                                 datamodule.num_reg,
                                 input_transformer=datamodule.input_transformer,
@@ -114,28 +115,6 @@ def objective(trial, namespace, root_dir, data_dir):
                          num_nodes=namespace.num_nodes,
                          detect_anomaly=False,
                          )
-
-    batch_size = find_batch_size_one_gpu(params_i, datamodule)
-    params_i['batch_size'] = batch_size
-    model.batch_size = batch_size
-    datamodule.batch_size = batch_size
-    # # find lr
-    # lr_finder = tuner.lr_find(model,
-    #                           datamodule=datamodule,
-    #                           min_lr=5e-5,
-    #                           max_lr=5e-3,
-    #                           num_training=20,
-    #                           mode='linear',
-    #                           early_stop_threshold=None)
-    # params_i['lr'] = lr_finder.suggestion()
-    params_i['lr'] = 2 * 7.8125e-7 * batch_size / namespace.gpus  # sorcery
-    print('params_i[\'lr\']', params_i['lr'])
-    # annoying but necessary for correct wandb batch size logging
-    model.__init__(datamodule.num_clf,
-                   datamodule.num_reg,
-                   input_transformer=datamodule.input_transformer,
-                   target_transformer=datamodule.target_transformer,
-                   **params_i)
 
     trainer.fit(model,
                 datamodule=datamodule)
