@@ -23,6 +23,30 @@ def clear_cache():
     pl.utilities.memory.garbage_collection_cuda()
 
 
+def find_batch_size_one_gpu(params_i, datamodule):
+    model = SASPerceiverIOModel(datamodule.num_clf,
+                                datamodule.num_reg,
+                                input_transformer=datamodule.input_transformer,
+                                target_transformer=datamodule.target_transformer,
+                                **params_i)
+    trainer = pl.Trainer(gpus=1,
+                         strategy=None,
+                         num_nodes=namespace.num_nodes,
+                         enable_checkpointing=False,
+                         detect_anomaly=False)
+    # find largest batch_size that fits in memory
+    tuner = Tuner(trainer)
+    batch_size = tuner.scale_batch_size(model,
+                                        datamodule=datamodule,
+                                        mode='binsearch',
+                                        init_val=32,
+                                        max_trials=6)
+    if batch_size > 2048:
+        batch_size = 2048
+    clear_cache()
+    return batch_size
+
+
 def objective(trial, namespace, root_dir, data_dir):
     dropout = trial.suggest_float('dropout', 0.0, 0.5, step=0.05)
     params_i = {
@@ -84,34 +108,27 @@ def objective(trial, namespace, root_dir, data_dir):
                          logger=logger,
                          precision=32,
                          callbacks=[early_stopping],
+                         overfit_batches=namespace.overfit_batches,
                          accumulate_grad_batches=namespace.accumulate_grad_batches,
                          strategy=namespace.strategy,
                          num_nodes=namespace.num_nodes,
                          detect_anomaly=False,
                          )
 
-    # find largest batch_size that fits in memory
-    tuner = Tuner(trainer)
-    batch_size = tuner.scale_batch_size(model,
-                                        datamodule=datamodule,
-                                        mode='binsearch',
-                                        init_val=32,
-                                        max_trials=6)
-    if batch_size > 2048:
-        batch_size = 2048
+    batch_size = find_batch_size_one_gpu(params_i, datamodule)
     params_i['batch_size'] = batch_size
     model.batch_size = batch_size
     datamodule.batch_size = batch_size
-    # find lr
-    lr_finder = tuner.lr_find(model,
-                              datamodule=datamodule,
-                              min_lr=5e-5,
-                              max_lr=5e-3,
-                              num_training=20,
-                              mode='linear',
-                              early_stop_threshold=None)
-    params_i['lr'] = lr_finder.suggestion()
-    # params_i['lr'] = 2 * 7.8125e-7 * batch_size / namespace.gpus  # sorcery
+    # # find lr
+    # lr_finder = tuner.lr_find(model,
+    #                           datamodule=datamodule,
+    #                           min_lr=5e-5,
+    #                           max_lr=5e-3,
+    #                           num_training=20,
+    #                           mode='linear',
+    #                           early_stop_threshold=None)
+    # params_i['lr'] = lr_finder.suggestion()
+    params_i['lr'] = 2 * 7.8125e-7 * batch_size / namespace.gpus  # sorcery
     print('params_i[\'lr\']', params_i['lr'])
     # annoying but necessary for correct wandb batch size logging
     model.__init__(datamodule.num_clf,
@@ -154,6 +171,8 @@ if __name__ == '__main__':
     parser.add_argument('--gpus', default=1, type=int, metavar='gpus')
     parser.add_argument('--accumulate_grad_batches', default=1,
                         type=int, metavar='accumulate_grad_batches')
+    parser.add_argument('--overfit_batches', default=0,
+                        type=int, metavar='overfit_batches')
     parser.add_argument('--strategy', default=None, type=str,
                         help='Set to `ddp` for cluster training', metavar='strategy')
     parser.add_argument('--num_nodes', default=1, type=int,
