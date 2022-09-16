@@ -81,7 +81,7 @@ def objective(trial, namespace, root_dir, data_dir):
     datamodule = SASDataModule(data_dir=data_dir,
                                sub_dir=namespace.sub_dir,
                                n_bins=params_i['n_bins'],
-                               batch_size=params_i['batch_size'],
+                               batch_size=1,  # placeholder
                                val_size=namespace.val_size,
                                subsample=namespace.subsample,
                                seed=namespace.seed)
