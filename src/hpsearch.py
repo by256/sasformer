@@ -13,7 +13,7 @@ from pytorch_lightning.loggers.wandb import WandbLogger
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 
 from data import SASDataModule
-# from train import estimate_batch_size
+from train import find_batch_size_one_gpu
 from model import SASPerceiverIOModel
 
 
@@ -21,29 +21,6 @@ def clear_cache():
     gc.collect()
     torch.cuda.empty_cache()
     pl.utilities.memory.garbage_collection_cuda()
-
-
-def find_batch_size_one_gpu(params_i, datamodule):
-    model = SASPerceiverIOModel(datamodule.num_clf,
-                                datamodule.num_reg,
-                                input_transformer=datamodule.input_transformer,
-                                target_transformer=datamodule.target_transformer,
-                                **params_i)
-    trainer = pl.Trainer(gpus=1,
-                         strategy=None,
-                         num_nodes=namespace.num_nodes,
-                         enable_checkpointing=False,
-                         detect_anomaly=False)
-    tuner = Tuner(trainer)
-    batch_size = tuner.scale_batch_size(model,
-                                        datamodule=datamodule,
-                                        mode='binsearch',
-                                        init_val=32,
-                                        max_trials=6)
-    if batch_size > 2048:
-        batch_size = 2048
-    clear_cache()
-    return batch_size
 
 
 def objective(trial, namespace, root_dir, data_dir):
@@ -98,7 +75,7 @@ def objective(trial, namespace, root_dir, data_dir):
     batch_size = int(batch_size * 0.9)  # buffer
     params_i['batch_size'] = batch_size
     datamodule.batch_size = batch_size
-    params_i['lr'] = 2 * 7.8125e-7 * batch_size / namespace.gpus  # sorcery
+    params_i['lr'] = 7.8125e-7 * batch_size / namespace.gpus  # sorcery
 
     model = SASPerceiverIOModel(datamodule.num_clf,
                                 datamodule.num_reg,
