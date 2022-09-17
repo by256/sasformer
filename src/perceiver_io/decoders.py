@@ -134,6 +134,7 @@ class TaskDecoder(BasePerceiverDecoder):
         self,
         num_outputs: int,
         latent_dim: int,
+        num_latents: int = 1,
         widening_factor: int = 1,
         num_heads: int = 1,
         qk_out_dim: Optional[int] = None,
@@ -144,7 +145,7 @@ class TaskDecoder(BasePerceiverDecoder):
         attention_dropout: float = 0.0
     ):
         super().__init__()
-        self.task_ids = nn.Parameter(torch.randn(1, num_outputs))
+        self.task_ids = nn.Parameter(torch.randn(num_latents, num_outputs))
         self.decoder = PerceiverDecoder(
             latent_dim=latent_dim,
             query_dim=num_outputs,
