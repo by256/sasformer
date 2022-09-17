@@ -33,7 +33,6 @@ def find_batch_size_one_gpu(params, datamodule):
                                 **params)
     trainer = pl.Trainer(gpus=1,
                          strategy=None,
-                         num_nodes=namespace.num_nodes,
                          enable_checkpointing=False,
                          deterministic=True,
                          detect_anomaly=False)
