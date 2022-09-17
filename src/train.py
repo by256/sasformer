@@ -1,4 +1,5 @@
 import argparse
+import gc
 import numpy as np
 import os
 import pandas as pd
@@ -7,6 +8,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers.wandb import WandbLogger
 from pytorch_lightning.profiler import SimpleProfiler
 from pytorch_lightning.strategies import DDPStrategy
+from pytorch_lightning.tuner.tuning import Tuner
 import sys
 import torch
 from typing import Union
@@ -17,14 +19,34 @@ from model import SASPerceiverIOModel
 from data import SASDataModule
 
 
-def estimate_batch_size(model, single_gpu=True, n_opt_moments=2, buffer=2500):
-    m = pl.utilities.memory.get_model_size_mb(model)
-    gpu_mem = torch.cuda.get_device_properties(0).total_memory * 1e-6
-    gpu_mem = gpu_mem - buffer
-    d = 1 if single_gpu else 2
-    b = (gpu_mem - m - 2*m*d - n_opt_moments*m) / m
-    b_exponent = np.floor(np.log2(b))  # - 1
-    return int(2**b_exponent)
+def clear_cache():
+    gc.collect()
+    torch.cuda.empty_cache()
+    pl.utilities.memory.garbage_collection_cuda()
+
+
+def find_batch_size_one_gpu(params, datamodule):
+    model = SASPerceiverIOModel(datamodule.num_clf,
+                                datamodule.num_reg,
+                                input_transformer=datamodule.input_transformer,
+                                target_transformer=datamodule.target_transformer,
+                                **params)
+    trainer = pl.Trainer(gpus=1,
+                         strategy=None,
+                         num_nodes=namespace.num_nodes,
+                         enable_checkpointing=False,
+                         deterministic=True,
+                         detect_anomaly=False)
+    tuner = Tuner(trainer)
+    batch_size = tuner.scale_batch_size(model,
+                                        datamodule=datamodule,
+                                        mode='binsearch',
+                                        init_val=32,
+                                        max_trials=6)
+    if batch_size > 2048:
+        batch_size = 2048
+    clear_cache()
+    return batch_size
 
 
 def load_hparams_from_yaml(path):
@@ -69,7 +91,7 @@ def load_hparams_from_namespace(namespace):
                'param_dec_dropout': namespace.param_dec_dropout,
                'param_dec_attn_dropout': namespace.param_dec_dropout,
                'lr': namespace.lr,
-               'batch_size': batch_size,
+               'batch_size': namespace.batch_size,
                'weight_decay': namespace.weight_decay,
                'n_bins': namespace.n_bins,
                'clf_weight': namespace.clf_weight,
@@ -98,17 +120,17 @@ if __name__ == '__main__':
                         type=int, metavar='num_latents')
     parser.add_argument('--latent_dim', default=256,
                         type=int, metavar='latent_dim')
-    parser.add_argument('--enc_num_blocks', default=1,
+    parser.add_argument('--enc_num_blocks', default=3,
                         type=int, metavar='enc_num_blocks')
-    parser.add_argument('--enc_num_self_attn_per_block', default=6,
+    parser.add_argument('--enc_num_self_attn_per_block', default=2,
                         type=int, metavar='encoder_num_self_attn_per_block')
-    parser.add_argument('--enc_num_self_attn_heads', default=4,
+    parser.add_argument('--enc_num_self_attn_heads', default=2,
                         type=int, metavar='encoder_num_self_attn_heads')
     parser.add_argument('--enc_num_cross_attn_heads', default=2,
                         type=int, metavar='enc_num_cross_attn_heads')
     parser.add_argument('--enc_cross_attn_widening_factor', default=1,
                         type=int, metavar='enc_cross_attn_widening_factor')
-    parser.add_argument('--enc_self_attn_widening_factor', default=2,
+    parser.add_argument('--enc_self_attn_widening_factor', default=1,
                         type=int, metavar='enc_self_attn_widening_factor')
     parser.add_argument('--enc_dropout', default=0.0,
                         type=float, metavar='enc_dropout')
@@ -180,17 +202,29 @@ if __name__ == '__main__':
     root_dir = os.path.dirname(os.path.abspath(__file__))
     data_dir = os.path.join(root_dir, namespace.data_dir)
 
-    # place holder if batch_size_auto == True
-    batch_size = 2 if namespace.batch_size_auto else namespace.batch_size
-
     datamodule = SASDataModule(data_dir=data_dir,
                                sub_dir=namespace.sub_dir,
-                               batch_size=batch_size,
+                               batch_size=namespace.batch_size,
                                n_bins=namespace.n_bins,
                                val_size=namespace.val_size,
                                subsample=namespace.subsample,
                                seed=namespace.seed)
     datamodule.setup()  # needed to initialze num_reg, num_clf and scalers
+
+    if namespace.from_yaml is not None:
+        params = load_hparams_from_yaml(namespace.from_yaml)
+    else:
+        params = load_hparams_from_namespace(namespace)
+
+    if namespace.batch_size_auto:
+        batch_size = find_batch_size_one_gpu(params, datamodule) // 2
+        # batch_size = int(batch_size * 0.9)  # buffer
+        params['batch_size'] = batch_size
+        datamodule.batch_size = batch_size
+
+    params['input_transformer'] = datamodule.input_transformer
+    params['target_transformer'] = datamodule.target_transformer
+    params['lr'] = params['lr'] * namespace.gpus * namespace.num_nodes
 
     # initialize model and trainer
     if namespace.disable_logger:
@@ -201,28 +235,9 @@ if __name__ == '__main__':
                                  root_dir, namespace.log_dir),
                              log_model=False)
 
-    if namespace.from_yaml is not None:
-        params = load_hparams_from_yaml(namespace.from_yaml)
-    else:
-        params = load_hparams_from_namespace(namespace)
-    params['input_transformer'] = datamodule.input_transformer
-    params['target_transformer'] = datamodule.target_transformer
-    params['lr'] = params['lr'] * namespace.gpus * namespace.num_nodes
-
     model = SASPerceiverIOModel(datamodule.num_clf,
                                 datamodule.num_reg,
                                 **params)
-
-    if namespace.batch_size_auto:
-        # estimate batch size
-        single_gpu = namespace.gpus == 1
-        batch_size = estimate_batch_size(model, single_gpu)
-        params['batch_size'] = batch_size
-        datamodule.batch_size = batch_size
-        # annoying but necessary for correct wandb batch size logging
-        model.__init__(datamodule.num_clf,
-                       datamodule.num_reg,
-                       **params)
 
     strategy = DDPStrategy(
         find_unused_parameters=False,

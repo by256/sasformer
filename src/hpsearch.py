@@ -1,4 +1,3 @@
-import gc
 import os
 import wandb
 import joblib
@@ -8,19 +7,12 @@ import numpy as np
 
 import torch
 import pytorch_lightning as pl
-from pytorch_lightning.tuner.tuning import Tuner
 from pytorch_lightning.loggers.wandb import WandbLogger
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 
 from data import SASDataModule
-from train import find_batch_size_one_gpu
+from train import clear_cache, find_batch_size_one_gpu
 from model import SASPerceiverIOModel
-
-
-def clear_cache():
-    gc.collect()
-    torch.cuda.empty_cache()
-    pl.utilities.memory.garbage_collection_cuda()
 
 
 def objective(trial, namespace, root_dir, data_dir):
