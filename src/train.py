@@ -162,11 +162,12 @@ if __name__ == '__main__':
     parser.add_argument('--reg_weight', default=1.0,
                         type=float, metavar='reg_weight')
     # lightning trainer args
-    parser.add_argument('--batch_size', default=1024,
+    parser.add_argument('--batch_size', default=2048,
                         type=int, metavar='batch_size')
     parser.add_argument('--batch_size_auto', default=0,
                         type=int, metavar='batch_size_auto')
-    parser.add_argument('--lr', default=8e-4, type=float, metavar='lr')
+    parser.add_argument('--lr_auto', default=0, type=int, metavar='lr_auto')
+    parser.add_argument('--lr', default=1.6e-3, type=float, metavar='lr')
     parser.add_argument('--weight_decay', default=0.0,
                         type=float, metavar='weight_decay')
     parser.add_argument('--max_epochs', default=200,
@@ -220,6 +221,9 @@ if __name__ == '__main__':
         # batch_size = int(batch_size * 0.9)  # buffer
         params['batch_size'] = batch_size
         datamodule.batch_size = batch_size
+
+    if namespace.lr_auto:
+        params['lr'] = 7.8125e-7 * batch_size
 
     params['input_transformer'] = datamodule.input_transformer
     params['target_transformer'] = datamodule.target_transformer

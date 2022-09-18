@@ -64,8 +64,12 @@ def raw_data_to_df(data_dir: str, sub_dir: str = 'large', step: int = 2) -> pd.D
 
 
 def quotient_transform(x):
-    # x = np.concatenate([x[:, 0, None], x], axis=1)
     return x[:, 1:] / x[:, :-1]
+
+
+def scalar_neutralization(x):
+    x_qt = quotient_transform(x)
+    return np.cumprod(x_qt, axis=-1)
 
 
 class IqTransformer(BaseEstimator, TransformerMixin):
@@ -81,19 +85,19 @@ class IqTransformer(BaseEstimator, TransformerMixin):
 
     def fit(self, x):
         x = self.quotient_log.transform(x)
-        self.discretizer.fit(x)
-        # self.discretizer.fit(np.reshape(x, (-1, 1)))
+        # self.discretizer.fit(x)
+        self.discretizer.fit(np.reshape(x, (-1, 1)))
         return self
 
     def transform(self, x):
         x = self.quotient_log.transform(x)
-        x = self.discretizer.transform(x)
-        # x = np.reshape(self.discretizer.transform(
-        #     np.reshape(x, (-1, 1))), (-1, x.shape[-1]))
+        # x = self.discretizer.transform(x)
+        x = np.reshape(self.discretizer.transform(
+            np.reshape(x, (-1, 1))), (-1, x.shape[-1]))
         return x
 
     def quotient_log_transform_(self, x):
-        return np.log(quotient_transform(x))
+        return np.log(scalar_neutralization(x))
 
     def get_discretizer_bins_(self, x):
         x = self.quotient_log_transform_(x)
