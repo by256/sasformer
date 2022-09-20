@@ -27,7 +27,7 @@ def objective(trial, namespace, root_dir, data_dir):
         'num_latents': trial.suggest_categorical('num_latents', [32, 48, 64, 96, 128]),
         'latent_dim': trial.suggest_categorical('latent_dim', [256, 512, 1024]),
         # encoder args
-        'enc_num_blocks': trial.suggest_int('enc_num_blocks', 2, 16),
+        'enc_num_blocks': trial.suggest_int('enc_num_blocks', 2, 12),
         'enc_num_self_attn_per_block': trial.suggest_int('enc_num_self_attn_per_block', 1, 4),
         'enc_num_cross_attn_heads': trial.suggest_categorical('enc_num_cross_attn_heads', [4, 8]),
         'enc_num_self_attn_heads': trial.suggest_categorical('enc_num_self_attn_heads', [4, 8]),
