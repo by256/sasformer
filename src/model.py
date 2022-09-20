@@ -57,6 +57,7 @@ class SASPerceiverIOModel(pl.LightningModule):
                  input_transformer: IqTransformer = None,
                  target_transformer: TargetTransformer = None):
         super().__init__()
+        self.num_classes = num_classes
         self.clf_weight = clf_weight
         self.reg_weight = reg_weight
         # scalers/preprocessors only for inference
@@ -101,57 +102,48 @@ class SASPerceiverIOModel(pl.LightningModule):
         return self.perceiver(x)
 
     def training_step(self, batch, batch_idx):
-        x, y_clf_true, y_reg_true = batch
-        y_clf_pred, y_reg_pred = self(x)
-        clf_loss = F.cross_entropy(y_clf_pred, y_clf_true)
-        reg_loss = multitask_mse(y_reg_pred, y_reg_true)
-        loss = self.clf_weight*clf_loss + self.reg_weight*reg_loss
-        acc = accuracy(torch.argmax(y_clf_pred, dim=1),
-                       y_clf_true, num_classes=self.num_classes)
-        mae = multitask_l1(self.unscale_y(y_reg_pred),
-                           self.unscale_y(y_reg_true))
-        current_lr = self.trainer.optimizers[0].state_dict()[
-            "param_groups"][0]["lr"]
-
-        self.log_losses_and_metrics(
-            clf_loss, reg_loss, acc, mae, current_lr, mode='train')
-        return loss
+        return self.step_(batch, batch_idx, mode='train')
 
     def validation_step(self, batch, batch_idx):
-        x, y_clf_true, y_reg_true = batch
-        y_clf_pred, y_reg_pred = self(x)
-        clf_loss = F.cross_entropy(y_clf_pred, y_clf_true)
-        reg_loss = multitask_mse(y_reg_pred, y_reg_true)
-        loss = self.clf_weight*clf_loss + self.reg_weight*reg_loss
-        acc = accuracy(torch.argmax(y_clf_pred, dim=1),
-                       y_clf_true, num_classes=self.num_classes)
-        mae = multitask_l1(self.unscale_y(y_reg_pred),
-                           self.unscale_y(y_reg_true))
-
-        self.log_losses_and_metrics(clf_loss, reg_loss, acc, mae, mode='val')
+        return self.step_(batch, batch_idx, mode='val')
 
     def test_step(self, batch, batch_idx):
+        return self.step_(batch, batch_idx, mode='test')
+
+    def step_(self, batch, batch_idx, mode):
         x, y_clf_true, y_reg_true = batch
+        # forward
         y_clf_pred, y_reg_pred = self(x)
+        # calculate individual losses
         clf_loss = F.cross_entropy(y_clf_pred, y_clf_true)
         reg_loss = multitask_mse(y_reg_pred, y_reg_true)
-        acc = accuracy(torch.argmax(y_clf_pred, dim=1),
-                       y_clf_true, num_classes=self.num_classes)
-        mae = multitask_l1(self.unscale_y(y_reg_pred),
-                           self.unscale_y(y_reg_true))
+        # calc and log metrics and losses
+        with torch.no_grad():
+            acc = accuracy(torch.argmax(y_clf_pred, dim=1),
+                           y_clf_true, num_classes=self.num_classes)
+            mae = multitask_l1(self.unscale_y(y_reg_pred),
+                               self.unscale_y(y_reg_true))
+            if mode == 'train':
+                current_lr = self.trainer.optimizers[0].state_dict()[
+                    "param_groups"][0]["lr"]
+            else:
+                current_lr = None
+        self.log_losses_and_metrics(
+            clf_loss, reg_loss, acc, mae, current_lr, mode=mode)
 
-        self.log_losses_and_metrics(clf_loss, reg_loss, acc, mae, mode='test')
+        if mode in ['train', 'val']:
+            loss = self.clf_weight*clf_loss + self.reg_weight*reg_loss
+            return loss
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(),
                                      lr=self.hparams.lr,
-                                     weight_decay=self.hparams.weight_decay,
-                                     )
+                                     weight_decay=self.hparams.weight_decay)
         lr_scheduler = LinearWarmupCosineAnnealingLR(optimizer,
                                                      warmup_epochs=int(
                                                          0.05*self.trainer.max_epochs),
                                                      max_epochs=self.trainer.max_epochs,
-                                                     eta_min=1e-5)
+                                                     eta_min=1e-4)
         return {'optimizer': optimizer,
                 'lr_scheduler': {'scheduler': lr_scheduler}}
 
