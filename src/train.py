@@ -217,13 +217,13 @@ if __name__ == '__main__':
         params = load_hparams_from_namespace(namespace)
 
     if namespace.batch_size_auto:
-        batch_size = find_batch_size_one_gpu(params, datamodule) // 2
-        # batch_size = int(batch_size * 0.9)  # buffer
+        batch_size = find_batch_size_one_gpu(params, datamodule)  # // 2
+        batch_size = int(batch_size * 0.9)  # buffer
         params['batch_size'] = batch_size
         datamodule.batch_size = batch_size
 
     if namespace.lr_auto:
-        params['lr'] = 7.8125e-7 * batch_size
+        params['lr'] = 0.5 * 7.8125e-7 * params['batch_size']
 
     params['input_transformer'] = datamodule.input_transformer
     params['target_transformer'] = datamodule.target_transformer
