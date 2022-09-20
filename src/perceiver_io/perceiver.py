@@ -8,10 +8,12 @@ from perceiver_io.encoder import PerceiverEncoder
 from perceiver_io.positional_encoding import PositionalEncoding
 
 
-class TokenAndPositionEmbedding(nn.Module):
+class TokenScaleAndPositionEmbedding(nn.Module):
     def __init__(self, latent_dim, n_bins=256, seq_len=256):
         super().__init__()
         self.token_embedding = nn.Embedding(
+            num_embeddings=n_bins, embedding_dim=latent_dim)
+        self.scale_embedding = nn.Embedding(
             num_embeddings=n_bins, embedding_dim=latent_dim)
         self.pos_embedding = nn.Embedding(
             num_embeddings=seq_len, embedding_dim=latent_dim)
@@ -21,9 +23,10 @@ class TokenAndPositionEmbedding(nn.Module):
         if self.pos_idxs.device != x.device:
             self.pos_idxs = self.pos_idxs.to(x.device)
         # TODO: remove token squeeze after updating data
-        token = self.token_embedding(x).squeeze()
+        token = self.token_embedding(x[:, :-1, :]).squeeze()
+        scale = self.scale_embedding(x[:, -1, :])
         pos = self.pos_embedding(self.pos_idxs.repeat(x.shape[0], 1))
-        return token + pos
+        return token + scale + pos
 
 
 class PerceiverIO(nn.Module):

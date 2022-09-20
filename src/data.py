@@ -53,7 +53,7 @@ def raw_data_to_df(data_dir: str, sub_dir: str = 'large', step: int = 2) -> pd.D
 
         n_model_rows = model_I_q.shape[0]
         for i in range(n_model_rows):
-            I_q = {'I(q={})'.format(q_values[j]): model_I_q[i, j] for j in range(n_q)}
+            I_q = {'I(q={})'.format(q_values[j]): model_I_q[i, j] for j in range(n_q)}  # nopep8
             clf_labels = {'model': model_name, 'model_label': model_idx}
             reg_targets = {param_names[j]: param_values[i, j]
                            for j in range(len(param_names))}
@@ -75,8 +75,8 @@ def scalar_neutralization(x):
 class IqTransformer(BaseEstimator, TransformerMixin):
     def __init__(self, n_bins=256):
         self.n_bins = n_bins
-        self.quotient_log = FunctionTransformer(
-            self.quotient_log_transform_)
+        self.input_transform = FunctionTransformer(
+            self.input_transform_)
         self.discretizer = KBinsDiscretizer(
             n_bins,
             encode='ordinal',
@@ -84,24 +84,23 @@ class IqTransformer(BaseEstimator, TransformerMixin):
             subsample=None)
 
     def fit(self, x):
-        x = self.quotient_log.transform(x)
-        # self.discretizer.fit(x)
-        self.discretizer.fit(np.reshape(x, (-1, 1)))
+        x = self.input_transform.transform(x)
+        self.discretizer.fit(x)
+        # self.discretizer.fit(np.reshape(x, (-1, 1)))
         return self
 
     def transform(self, x):
-        x = self.quotient_log.transform(x)
-        # x = self.discretizer.transform(x)
-        x = np.reshape(self.discretizer.transform(
-            np.reshape(x, (-1, 1))), (-1, x.shape[-1]))
+        x = self.input_transform.transform(x)
+        x = self.discretizer.transform(x)
+        # x = np.reshape(self.discretizer.transform(
+        # np.reshape(x, (-1, 1))), (-1, x.shape[-1]))
         return x
 
-    def quotient_log_transform_(self, x):
-        return np.log(scalar_neutralization(x))
-
-    def get_discretizer_bins_(self, x):
-        x = self.quotient_log_transform_(x)
-        return np.array([len(np.histogram_bin_edges(x[:, i], bins='fd')) for i in range(x.shape[-1])])
+    def input_transform_(self, x):
+        # return np.log(quotient_transform(x))
+        scale = (x[:, 1:] / scalar_neutralization(x))[:, 0]
+        x_trans = np.log(quotient_transform(x))
+        return np.concatenate([x_trans, scale[:, None]], axis=-1)
 
 
 class TargetTransformer(BaseEstimator, TransformerMixin):
@@ -157,7 +156,7 @@ class SASDataset:
         reg_target_columns = [x for x in df.columns if x.startswith('reg')]
 
         self.I_q = df[data_columns].values
-        self.I_q_transformed = x_scaler.transform(self.I_q)
+        self.I_q_transformed = x_scaler.transform(df[data_columns].values)
         self.reg_targets = df[reg_target_columns].values
         self.reg_targets_transformed = self.y_scaler.transform(
             self.reg_targets)
