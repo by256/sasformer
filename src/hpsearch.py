@@ -49,8 +49,8 @@ def objective(trial, namespace, root_dir, data_dir):
         'param_dec_dropout': param_dec_dropout,
         'param_dec_attn_dropout': param_dec_dropout,
         # loss args
-        'clf_weight': 1.0,
-        'reg_weight': 1.0
+        'clf_weight': trial.suggest_categorical('clf_weight', np.logspace(-2, 1, 14)),
+        'reg_weight': trial.suggest_categorical('reg_weight', np.logspace(-2, 1, 14)),
     }
 
     datamodule = SASDataModule(data_dir=data_dir,

@@ -143,7 +143,7 @@ class SASPerceiverIOModel(pl.LightningModule):
                                                      warmup_epochs=int(
                                                          0.05*self.trainer.max_epochs),
                                                      max_epochs=self.trainer.max_epochs,
-                                                     eta_min=1e-4)
+                                                     eta_min=self.hparams.lr/10.0)
         return {'optimizer': optimizer,
                 'lr_scheduler': {'scheduler': lr_scheduler}}
 
