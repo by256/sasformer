@@ -123,14 +123,6 @@ class SASPerceiverIO(nn.Module):
         """
         emb = self.embedding(inputs)
         latents = self.encoder(emb, kv_mask=input_mask)
-        clf_outputs = self.sas_model_decoder(
-            query=query,
-            latents=latents,
-            q_mask=query_mask
-        )
-        reg_outputs = self.sas_param_decoder(
-            query=query,
-            latents=latents,
-            q_mask=query_mask
-        )
+        clf_outputs = self.sas_model_decoder(latents)
+        reg_outputs = self.sas_param_decoder(latents)
         return clf_outputs, reg_outputs

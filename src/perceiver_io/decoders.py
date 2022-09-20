@@ -161,8 +161,6 @@ class TaskDecoder(BasePerceiverDecoder):
 
     def forward(
         self,
-        *,
-        query: torch.Tensor,
         latents: torch.Tensor,
         q_mask: Optional[torch.Tensor] = None
     ):

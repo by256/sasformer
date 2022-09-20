@@ -80,21 +80,73 @@ class SASPerceiverIOModel(pl.LightningModule):
                                         cross_attention_dropout=enc_cross_attention_dropout,
                                         self_attention_dropout=enc_self_attention_dropout)
         # clf decoder
-        self.sas_model_decoder = TaskDecoder(num_outputs=num_classes,
-                                             latent_dim=latent_dim,
-                                             widening_factor=model_dec_widening_factor,
-                                             num_heads=model_dec_num_heads,
-                                             qk_out_dim=model_dec_qk_out_dim,
-                                             dropout=model_dec_dropout,
-                                             attention_dropout=model_dec_attn_dropout)
+        # self.sas_model_decoder = TaskDecoder(num_outputs=num_classes,
+        #                                      latent_dim=latent_dim,
+        #                                      widening_factor=model_dec_widening_factor,
+        #                                      num_heads=model_dec_num_heads,
+        #                                      qk_out_dim=model_dec_qk_out_dim,
+        #                                      dropout=model_dec_dropout,
+        #                                      attention_dropout=model_dec_attn_dropout)
+        self.sas_model_decoder = nn.Sequential(
+            TaskDecoder(num_outputs=latent_dim,
+                        latent_dim=latent_dim,
+                        num_latents=num_latents//2,
+                        widening_factor=model_dec_widening_factor,
+                        num_heads=model_dec_num_heads,
+                        qk_out_dim=model_dec_qk_out_dim,
+                        dropout=model_dec_dropout,
+                        attention_dropout=model_dec_attn_dropout),
+            TaskDecoder(num_outputs=latent_dim,
+                        latent_dim=latent_dim,
+                        num_latents=num_latents//4,
+                        widening_factor=model_dec_widening_factor,
+                        num_heads=model_dec_num_heads,
+                        qk_out_dim=model_dec_qk_out_dim,
+                        dropout=model_dec_dropout,
+                        attention_dropout=model_dec_attn_dropout),
+            TaskDecoder(num_outputs=num_classes,
+                        latent_dim=latent_dim,
+                        widening_factor=model_dec_widening_factor,
+                        num_heads=model_dec_num_heads,
+                        qk_out_dim=model_dec_qk_out_dim,
+                        dropout=model_dec_dropout,
+                        attention_dropout=model_dec_attn_dropout)
+        )
+
         # reg decoder
-        self.sas_param_decoder = TaskDecoder(num_outputs=num_reg_outputs,
-                                             latent_dim=latent_dim,
-                                             widening_factor=param_dec_widening_factor,
-                                             num_heads=param_dec_num_heads,
-                                             qk_out_dim=param_dec_qk_out_dim,
-                                             dropout=param_dec_dropout,
-                                             attention_dropout=param_dec_attn_dropout)
+        # self.sas_param_decoder = TaskDecoder(num_outputs=num_reg_outputs,
+        #                                      latent_dim=latent_dim,
+        #                                      widening_factor=param_dec_widening_factor,
+        #                                      num_heads=param_dec_num_heads,
+        #                                      qk_out_dim=param_dec_qk_out_dim,
+        #                                      dropout=param_dec_dropout,
+        #                                      attention_dropout=param_dec_attn_dropout)
+        self.sas_param_decoder = nn.Sequential(
+            TaskDecoder(num_outputs=latent_dim,
+                        latent_dim=latent_dim,
+                        num_latents=num_latents//2,
+                        widening_factor=param_dec_widening_factor,
+                        num_heads=param_dec_num_heads,
+                        qk_out_dim=param_dec_qk_out_dim,
+                        dropout=param_dec_dropout,
+                        attention_dropout=param_dec_attn_dropout),
+            TaskDecoder(num_outputs=latent_dim,
+                        latent_dim=latent_dim,
+                        num_latents=num_latents//4,
+                        widening_factor=param_dec_widening_factor,
+                        num_heads=param_dec_num_heads,
+                        qk_out_dim=param_dec_qk_out_dim,
+                        dropout=param_dec_dropout,
+                        attention_dropout=param_dec_attn_dropout),
+            TaskDecoder(num_outputs=num_reg_outputs,
+                        latent_dim=latent_dim,
+                        widening_factor=param_dec_widening_factor,
+                        num_heads=param_dec_num_heads,
+                        qk_out_dim=param_dec_qk_out_dim,
+                        dropout=param_dec_dropout,
+                        attention_dropout=param_dec_attn_dropout)
+        )
+
         self.perceiver = SASPerceiverIO(
             self.encoder, self.sas_model_decoder, self.sas_param_decoder, n_bins, seq_len)
 
