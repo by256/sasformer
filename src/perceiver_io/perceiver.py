@@ -98,7 +98,7 @@ class SASPerceiverIO(nn.Module):
         self.encoder = encoder
         self.sas_model_decoder = sas_model_decoder
         self.sas_param_decoder = sas_param_decoder
-        self.embedding = TokenAndPositionEmbedding(
+        self.embedding = TokenScaleAndPositionEmbedding(
             encoder.latent_dim, n_bins, seq_len)
 
     def forward(
