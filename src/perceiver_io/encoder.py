@@ -73,19 +73,18 @@ class PerceiverEncoder(nn.Module):
             dropout=dropout,
             attention_dropout=cross_attention_dropout
         )
-
-        self.self_attention_blocks = nn.Sequential(
-            *[self.single_self_attention_block(
-                num_self_attn_per_block,
-                latent_dim,
-                widening_factor=self_attn_widening_factor,
-                num_heads=num_self_attn_heads,
-                qk_out_dim=qk_out_dim,
-                v_out_dim=v_out_dim,
-                dropout=dropout,
-                attention_dropout=self_attention_dropout
-            ) for _ in range(num_blocks)]
+        block = self.self_attention_block(
+            num_self_attn_per_block,
+            latent_dim,
+            widening_factor=self_attn_widening_factor,
+            num_heads=num_self_attn_heads,
+            qk_out_dim=qk_out_dim,
+            v_out_dim=v_out_dim,
+            dropout=dropout,
+            attention_dropout=self_attention_dropout
         )
+        self.self_attention_blocks = nn.Sequential(
+            *[block for _ in range(num_blocks)])
 
     def forward(self, x: torch.Tensor, kv_mask: Optional[torch.Tensor] = None):
         """
@@ -108,7 +107,7 @@ class PerceiverEncoder(nn.Module):
         )
         return self.self_attention_blocks(latents)
 
-    def single_self_attention_block(
+    def self_attention_block(
             self,
             num_self_attn_per_block: int,
             hidden_dim: int,

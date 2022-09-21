@@ -27,8 +27,8 @@ def objective(trial, namespace, root_dir, data_dir):
         'num_latents': trial.suggest_categorical('num_latents', [32, 48, 64, 96, 128]),
         'latent_dim': trial.suggest_categorical('latent_dim', [256, 512, 1024]),
         # encoder args
-        'enc_num_blocks': trial.suggest_int('enc_num_blocks', 2, 12),
-        'enc_num_self_attn_per_block': trial.suggest_int('enc_num_self_attn_per_block', 1, 4),
+        'enc_num_blocks': 1,  # trial.suggest_int('enc_num_blocks', 2, 12),
+        'enc_num_self_attn_per_block': trial.suggest_int('enc_num_self_attn_per_block', 4, 16),
         'enc_num_cross_attn_heads': trial.suggest_categorical('enc_num_cross_attn_heads', [4, 8]),
         'enc_num_self_attn_heads': trial.suggest_categorical('enc_num_self_attn_heads', [4, 8]),
         'enc_cross_attn_widening_factor': trial.suggest_int('enc_cross_attn_widening_factor', 1, 2),
@@ -37,15 +37,15 @@ def objective(trial, namespace, root_dir, data_dir):
         'enc_cross_attention_dropout': enc_dropout,
         'enc_self_attention_dropout': enc_dropout,
         # model decoder args
-        'model_dec_widening_factor': trial.suggest_int('model_dec_widening_factor', 1, 2),
+        # 'model_dec_widening_factor': trial.suggest_int('model_dec_widening_factor', 1, 2),
         'model_dec_num_heads': trial.suggest_categorical('model_dec_num_heads', [2, 4, 8]),
-        'model_dec_qk_out_dim': trial.suggest_categorical('model_dec_qk_out_dim', [128, 256, 512]),
+        'model_dec_qk_out_dim': trial.suggest_categorical('model_dec_qk_out_dim', [128, 256]),
         'model_dec_dropout': model_dec_dropout,
         'model_dec_attn_dropout': model_dec_dropout,
         # param decoder args
-        'param_dec_widening_factor': trial.suggest_int('param_dec_widening_factor', 1, 2),
+        # 'param_dec_widening_factor': trial.suggest_int('param_dec_widening_factor', 1, 2),
         'param_dec_num_heads': trial.suggest_categorical('param_dec_num_heads', [2, 4, 8]),
-        'param_dec_qk_out_dim': trial.suggest_categorical('param_dec_qk_out_dim', [128, 256, 512]),
+        'param_dec_qk_out_dim': trial.suggest_categorical('param_dec_qk_out_dim', [128, 256]),
         'param_dec_dropout': param_dec_dropout,
         'param_dec_attn_dropout': param_dec_dropout,
         # loss args
