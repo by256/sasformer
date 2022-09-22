@@ -85,15 +85,15 @@ class IqTransformer(BaseEstimator, TransformerMixin):
 
     def fit(self, x):
         x = self.input_transform.transform(x)
-        self.discretizer.fit(x)
-        # self.discretizer.fit(np.reshape(x, (-1, 1)))
+        # self.discretizer.fit(x)
+        self.discretizer.fit(np.reshape(x, (-1, 1)))
         return self
 
     def transform(self, x):
         x = self.input_transform.transform(x)
-        x = self.discretizer.transform(x)
-        # x = np.reshape(self.discretizer.transform(
-        # np.reshape(x, (-1, 1))), (-1, x.shape[-1]))
+        # x = self.discretizer.transform(x)
+        x = np.reshape(self.discretizer.transform(
+            np.reshape(x, (-1, 1))), (-1, x.shape[-1]))
         return x
 
     def input_transform_(self, x):
