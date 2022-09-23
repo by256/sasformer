@@ -36,8 +36,8 @@ class TokenScaleAndPositionEmbedding(nn.Module):
     def forward(self, x):
         # if self.pos_idxs.device != x.device:
         #     self.pos_idxs = self.pos_idxs.to(x.device)
-        if self.pos.device != x.device:
-            self.pos = self.pos.to(x.device)
+        if self.pos_embedding.device != x.device:
+            self.pos_embedding = self.pos_embedding.to(x.device)
         # TODO: remove token squeeze after updating data
         token = self.token_embedding(x[:, :-1, :]).squeeze()
         scale = self.scale_embedding(x[:, -1, :])
