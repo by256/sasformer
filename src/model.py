@@ -54,12 +54,14 @@ class SASPerceiverIOModel(pl.LightningModule):
                  n_bins: int = 256,
                  clf_weight: float = 1.0,
                  reg_weight: float = 1.0,
+                 reg_obj: str = 'mae',
                  input_transformer: IqTransformer = None,
                  target_transformer: TargetTransformer = None):
         super().__init__()
         self.num_classes = num_classes
         self.clf_weight = clf_weight
         self.reg_weight = reg_weight
+        self.reg_obj = reg_obj
         # scalers/preprocessors only for inference
         self.input_transformer = input_transformer
         self.target_transformer = target_transformer
@@ -154,7 +156,10 @@ class SASPerceiverIOModel(pl.LightningModule):
         y_clf_pred, y_reg_pred = self(x)
         # calculate individual losses
         clf_loss = F.cross_entropy(y_clf_pred, y_clf_true)
-        reg_loss = multitask_mse(y_reg_pred, y_reg_true)
+        if self.reg_obj == 'mse':
+            reg_loss = multitask_mse(y_reg_pred, y_reg_true)
+        elif self.reg_obj == 'mae':
+            reg_loss = multitask_l1(y_reg_pred, y_reg_true)
         # calc and log metrics and losses
         with torch.no_grad():
             acc = accuracy(torch.argmax(y_clf_pred, dim=1),

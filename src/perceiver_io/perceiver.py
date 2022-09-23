@@ -1,3 +1,4 @@
+import numpy as np
 from typing import Optional
 
 import torch
@@ -8,6 +9,18 @@ from perceiver_io.encoder import PerceiverEncoder
 from perceiver_io.positional_encoding import PositionalEncoding
 
 
+def sinusoids(length, channels, max_timescale=512):
+    """Returns sinusoids for positional embedding. 
+    https://github.com/openai/whisper - Jong Wook Kim 2022 (OpenAI)"""
+    assert channels % 2 == 0
+    log_timescale_increment = np.log(max_timescale) / (channels // 2 - 1)
+    inv_timescales = torch.exp(-log_timescale_increment *
+                               torch.arange(channels // 2))
+    scaled_time = torch.arange(
+        length)[:, np.newaxis] * inv_timescales[np.newaxis, :]
+    return torch.cat([torch.sin(scaled_time), torch.cos(scaled_time)], dim=1)
+
+
 class TokenScaleAndPositionEmbedding(nn.Module):
     def __init__(self, latent_dim, n_bins=256, seq_len=256):
         super().__init__()
@@ -15,17 +28,21 @@ class TokenScaleAndPositionEmbedding(nn.Module):
             num_embeddings=n_bins, embedding_dim=latent_dim)
         self.scale_embedding = nn.Embedding(
             num_embeddings=n_bins, embedding_dim=latent_dim)
-        self.pos_embedding = nn.Embedding(
-            num_embeddings=seq_len, embedding_dim=latent_dim)
-        self.pos_idxs = torch.arange(seq_len).unsqueeze(0)
+        # self.pos_embedding = nn.Embedding(
+        #     num_embeddings=seq_len, embedding_dim=latent_dim)
+        # self.pos_idxs = torch.arange(seq_len).unsqueeze(0)
+        self.pos_embedding = sinusoids(seq_len, latent_dim).unsqueeze(0)
 
     def forward(self, x):
-        if self.pos_idxs.device != x.device:
-            self.pos_idxs = self.pos_idxs.to(x.device)
+        # if self.pos_idxs.device != x.device:
+        #     self.pos_idxs = self.pos_idxs.to(x.device)
+        if self.pos.device != x.device:
+            self.pos = self.pos.to(x.device)
         # TODO: remove token squeeze after updating data
         token = self.token_embedding(x[:, :-1, :]).squeeze()
         scale = self.scale_embedding(x[:, -1, :])
-        pos = self.pos_embedding(self.pos_idxs.repeat(x.shape[0], 1))
+        # pos = self.pos_embedding(self.pos_idxs.repeat(x.shape[0], 1))
+        pos = self.pos_embedding
         return token + scale + pos
 
 

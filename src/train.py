@@ -94,7 +94,8 @@ def load_hparams_from_namespace(namespace):
                'weight_decay': namespace.weight_decay,
                'n_bins': namespace.n_bins,
                'clf_weight': namespace.clf_weight,
-               'reg_weight': namespace.reg_weight}
+               'reg_weight': namespace.reg_weight,
+               'reg_obj': namespace.reg_obj}
     return hparams
 
 
@@ -161,6 +162,8 @@ if __name__ == '__main__':
                         type=float, metavar='clf_weight')
     parser.add_argument('--reg_weight', default=1.0,
                         type=float, metavar='reg_weight')
+    parser.add_argument('--reg_obj', default='mse',
+                        type=str, metavar='reg_obj')
     # lightning trainer args
     parser.add_argument('--batch_size', default=2048,
                         type=int, metavar='batch_size')
