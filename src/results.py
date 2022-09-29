@@ -3,13 +3,20 @@ import json
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import pandas as pd
 import pytorch_lightning as pl
 from sklearn.metrics import accuracy_score, confusion_matrix, ConfusionMatrixDisplay, mean_absolute_error
 import torch
-import yaml
 
 from model import SASPerceiverIOModel
 from data import SASDataModule
+
+
+def top_k_acc(true, pred, k=3):
+    n = len(true)
+    n_correct = np.sum(
+        [np.isin(a, b) for a, b in zip(true, np.argsort(pred, axis=1)[:, ::-1][:, :k])])
+    return n_correct / n
 
 
 if __name__ == '__main__':
@@ -43,76 +50,109 @@ if __name__ == '__main__':
     device = 'cuda:0' if namespace.accelerator == 'gpu' else 'cpu'
     model = SASPerceiverIOModel.load_from_checkpoint(
         checkpoint_path=namespace.ckpt_path).to(device)
+    print(model.hparams, '\n')
 
     datamodule = SASDataModule(data_dir=data_dir,
                                sub_dir=namespace.sub_dir,
-                               n_bins=128,
-                               batch_size=namespace.batch_size,
+                               n_bins=model.hparams['n_bins'],
+                               batch_size=2048,
+                               val_size=0.25,
                                seed=namespace.seed)
     datamodule.setup()  # needed to initialze num_reg, num_clf and scalers
 
-    datamodule.input_transformer = model.input_transformer
-    datamodule.target_transformer = model.target_transformer
+    trainer = pl.Trainer(
+        gpus=1 if namespace.accelerator == 'gpu' else None,
+        deterministic=True)
+    # trainer.validate(model, datamodule=datamodule,
+    #                  ckpt_path=namespace.ckpt_path)
+    test_results = trainer.test(model, datamodule=datamodule,
+                                ckpt_path=namespace.ckpt_path)[0]
+    global_results = {
+        'acc': [test_results['test/accuracy']],
+        'mae': [test_results['test/mae']]}
 
-    test_loader = datamodule.test_dataloader()
+    test_dataloader = datamodule.test_dataloader()
 
-    y_pred_clf = []
-    y_true_clf = []
-    y_pred_reg = []
-    y_true_reg = []
-
-    with torch.no_grad():
-        for batch in test_loader:
-            y_hat_clf, y_hat_reg = model(batch[0].to(device))
-            # classification
-            y_pred_clf.append(torch.argmax(
-                y_hat_clf, dim=1).detach().cpu().numpy())
-            y_true_clf.append(batch[1].detach().cpu().numpy())
-            # regression
-            y_pred_reg.append(y_hat_reg.detach().cpu().numpy())
-            y_true_reg.append(batch[2].detach().cpu().numpy())
-
-    y_pred_clf = np.concatenate(y_pred_clf)
-    y_true_clf = np.concatenate(y_true_clf)
-
-    acc = accuracy_score(y_true_clf, y_pred_clf)
-    print(f'Accuracy: {acc:.3f}')
-
-    y_pred_reg = np.concatenate(y_pred_reg)
-    y_true_reg = np.concatenate(y_true_reg)
-
-    y_pred_reg = model.target_transformer.inverse_transform(y_pred_reg)
+    # test targets
+    true_batches = [batch for batch in test_dataloader]
+    y_true_clf = torch.cat([batch[1]
+                           for batch in true_batches], dim=0).cpu().numpy()
+    y_true_reg = torch.cat([batch[2]
+                           for batch in true_batches], dim=0).cpu().numpy()
     y_true_reg = model.target_transformer.inverse_transform(y_true_reg)
 
+    # test predictions
+    pred_batches = trainer.predict(
+        model, test_dataloader, ckpt_path=namespace.ckpt_path)
+    y_pred_clf = torch.cat([batch[0]
+                           for batch in pred_batches], dim=0).cpu().numpy()
+    y_pred_reg = torch.cat([batch[1]
+                           for batch in pred_batches], dim=0).cpu().numpy()
+    y_pred_reg = model.target_transformer.inverse_transform(y_pred_reg)
+
+    acc = test_results['test/accuracy']
+    top3_acc = top_k_acc(y_true_clf, y_pred_clf, k=3)
+    print(f'Accuracy: {acc:.5f}    Top3 Acc: {top3_acc:.5f}')
+
+    global_results['top3_acc'] = [top3_acc]
+    global_results_path = os.path.join(results_dir, 'global.csv')
+    pd.DataFrame(global_results).to_csv(global_results_path, index=False)
+
+    # per model class metrics
+    test_df = datamodule.test_dataset.df
+
+    # clf
+    inter_class_acc = {'model': [], 'acc': [], 'top3_acc': []}
+
+    model_names = test_df['model'].unique()
+    for model_name in model_names:
+        model_idx = test_df[test_df['model'] == model_name].index.tolist()
+        acc = accuracy_score(y_true_clf[model_idx], np.argmax(
+            y_pred_clf[model_idx], axis=1))
+        top3_acc = top_k_acc(y_true_clf[model_idx], y_pred_clf[model_idx], k=3)
+        inter_class_acc['model'].append(model_name)
+        inter_class_acc['acc'].append(acc)
+        inter_class_acc['top3_acc'].append(top3_acc)
+        print(f'{model_name.ljust(27)}   Acc: {acc:.5f}   Top 3 Acc: {top3_acc:.5f}')
+
+    inter_class_acc_path = os.path.join(results_dir, 'interclass_clf.csv')
+    pd.DataFrame(inter_class_acc).to_csv(inter_class_acc_path, index=False)
+    print('\n')
+
+    # reg
+    inter_class_mae = {'model': [], 'param': [],  'mae': [], 'scale': []}
+
+    reg_target_columns = [x for x in test_df.columns if x.startswith('reg')]
+    model_param = [x.split('-')[1:] for x in reg_target_columns]
+    model_param = [(x[0].split('=')[-1], x[1].split('=')[-1])
+                   for x in model_param]
+    for idx, (model_name, param_name) in enumerate(model_param):
+        mae = np.nanmean(np.abs(y_pred_reg[:, idx] - y_true_reg[:, idx]))
+        if param_name in scales[model_name]:
+            scale = scales[model_name][param_name]
+        else:
+            scale = 'linear'
+        inter_class_mae['model'].append(model_name)
+        inter_class_mae['param'].append(param_name)
+        inter_class_mae['mae'].append(mae)
+        inter_class_mae['scale'].append(scale)
+        print(
+            f'{str(idx).ljust(3)}: {model_name.ljust(27)}  {param_name.ljust(18)}   MAE: {mae:.3f}   Scale: {scale.ljust(10)}')
+
+    inter_class_mae_path = os.path.join(results_dir, 'interclass_reg.csv')
+    pd.DataFrame(inter_class_mae).to_csv(inter_class_mae_path, index=False)
+    print('\n')
+
     # classification results
-    C = confusion_matrix(y_true_clf, y_pred_clf)
+    C = confusion_matrix(y_true_clf, np.argmax(
+        y_pred_clf, axis=1))
     clf_model_names = sorted(
         list(np.unique(datamodule.test_dataset.df['model'])))
     disp = ConfusionMatrixDisplay(C, display_labels=clf_model_names)
-    fig, ax = plt.subplots(figsize=(22, 22))
+    fig, ax = plt.subplots(figsize=(12, 12))
     disp.plot(ax=ax)
     disp.im_.colorbar.remove()
     ax.set_xticklabels(clf_model_names, rotation=90)
     plt.savefig(os.path.join(results_dir, 'confusion.pdf'),
                 bbox_inches='tight', transparent=False, pad_inches=0)
     plt.close()
-
-    # regression results
-    reg_target_columns = [
-        x for x in datamodule.test_dataset.df.columns if x.startswith('reg')]
-    model_param = [x.split('-')[1:] for x in reg_target_columns]
-    model_param = [(x[0].split('=')[-1], x[1].split('=')[-1])
-                   for x in model_param]
-    for idx, (model_name, param_name) in enumerate(model_param):
-        pred = y_pred_reg[:, idx]
-        true = y_true_reg[:, idx]
-        mae = np.nanmean(np.abs(pred - true))
-        if param_name in scales[model_name]:
-            scale = scales[model_name][param_name]
-        else:
-            scale = 'linear'
-        print('{}:    {}    {}    MAE: {:.5f}        {}'.format(str(idx).ljust(
-            3), model_name.ljust(30), param_name.ljust(20), mae, f'Scale: {scale}'.ljust(10)))
-
-    print(
-        f'Total MAE: {mean_absolute_error(y_pred_reg.ravel(), y_true_reg.ravel()):.3f}')
