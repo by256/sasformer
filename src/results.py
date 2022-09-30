@@ -149,8 +149,8 @@ if __name__ == '__main__':
     clf_model_names = sorted(
         list(np.unique(datamodule.test_dataset.df['model'])))
     disp = ConfusionMatrixDisplay(C, display_labels=clf_model_names)
-    fig, ax = plt.subplots(figsize=(12, 12))
-    disp.plot(ax=ax)
+    fig, ax = plt.subplots(figsize=(16, 16))
+    disp.plot(ax=ax, cmap='Blues')
     disp.im_.colorbar.remove()
     ax.set_xticklabels(clf_model_names, rotation=90)
     plt.savefig(os.path.join(results_dir, 'confusion.pdf'),
