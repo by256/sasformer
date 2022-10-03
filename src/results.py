@@ -109,7 +109,9 @@ if __name__ == '__main__':
         model_idx = test_df[test_df['model'] == model_name].index.tolist()
         acc = accuracy_score(y_true_clf[model_idx], np.argmax(
             y_pred_clf[model_idx], axis=1))
+        acc = np.round(acc, 3)
         top3_acc = top_k_acc(y_true_clf[model_idx], y_pred_clf[model_idx], k=3)
+        top3_acc = np.round(top3_acc, 3)
         inter_class_acc['model'].append(model_name)
         inter_class_acc['acc'].append(acc)
         inter_class_acc['top3_acc'].append(top3_acc)
@@ -128,6 +130,7 @@ if __name__ == '__main__':
                    for x in model_param]
     for idx, (model_name, param_name) in enumerate(model_param):
         mae = np.nanmean(np.abs(y_pred_reg[:, idx] - y_true_reg[:, idx]))
+        mae = np.round(mae, 3)
         if param_name in scales[model_name]:
             scale = scales[model_name][param_name]
         else:
