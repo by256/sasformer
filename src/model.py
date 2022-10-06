@@ -26,7 +26,7 @@ class SASPerceiverIOModel(pl.LightningModule):
     def __init__(self,
                  num_classes: int,
                  num_reg_outputs: int,
-                 seq_len=255,
+                 seq_len=511,
                  latent_dim: int = 256,
                  num_latents: int = 64,
                  enc_num_blocks: int = 4,
