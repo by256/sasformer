@@ -93,6 +93,8 @@ def load_hparams_from_namespace(namespace):
                'batch_size': namespace.batch_size,
                'weight_decay': namespace.weight_decay,
                'n_bins': namespace.n_bins,
+               'seq_len': namespace.seq_len,
+               'use_scale': namespace.use_scale,
                'clf_weight': namespace.clf_weight,
                'reg_weight': namespace.reg_weight,
                'reg_obj': namespace.reg_obj}
@@ -156,8 +158,12 @@ if __name__ == '__main__':
     parser.add_argument('--subsample', default=None,
                         type=int, help='Subsample data (for debugging)', metavar='subsample')
     # lightning model args
-    parser.add_argument('--n_bins', default=256,
+    parser.add_argument('--n_bins', default=2048,
                         type=int, help='n bins for input discretization.', metavar='n_bins')
+    parser.add_argument('--seq_len', default=511,
+                        type=int, help='I(q) sequence length.', metavar='seq_len')
+    parser.add_argument('--use_scale', default=1,
+                        type=int, help='Use scale embeddings.', metavar='use_scale')
     parser.add_argument('--clf_weight', default=1.0,
                         type=float, metavar='clf_weight')
     parser.add_argument('--reg_weight', default=1.0,

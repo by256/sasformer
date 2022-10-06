@@ -22,28 +22,27 @@ def sinusoids(length, channels, max_timescale=512):
 
 
 class TokenScaleAndPositionEmbedding(nn.Module):
-    def __init__(self, latent_dim, n_bins=256, seq_len=256):
+    def __init__(self, latent_dim, n_bins=256, seq_len=256, use_scale=True):
         super().__init__()
+        self.use_scale = use_scale
         self.token_embedding = nn.Embedding(
             num_embeddings=n_bins, embedding_dim=latent_dim)
-        self.scale_embedding = nn.Embedding(
-            num_embeddings=n_bins, embedding_dim=latent_dim)
-        # self.pos_embedding = nn.Embedding(
-        #     num_embeddings=seq_len, embedding_dim=latent_dim)
-        # self.pos_idxs = torch.arange(seq_len).unsqueeze(0)
         self.pos_embedding = sinusoids(seq_len, latent_dim).unsqueeze(0)
+        if use_scale:
+            self.scale_embedding = nn.Embedding(
+                num_embeddings=n_bins, embedding_dim=latent_dim)
 
     def forward(self, x):
-        # if self.pos_idxs.device != x.device:
-        #     self.pos_idxs = self.pos_idxs.to(x.device)
         if self.pos_embedding.device != x.device:
             self.pos_embedding = self.pos_embedding.to(x.device)
         # TODO: remove token squeeze after updating data
         token = self.token_embedding(x[:, :-1, :]).squeeze()
-        scale = self.scale_embedding(x[:, -1, :])
-        # pos = self.pos_embedding(self.pos_idxs.repeat(x.shape[0], 1))
         pos = self.pos_embedding
-        return token + scale + pos
+        emb = token + pos
+        if self.use_scale:
+            scale = self.scale_embedding(x[:, -1, :])
+            emb = emb + scale
+        return emb
 
 
 class PerceiverIO(nn.Module):
@@ -102,7 +101,8 @@ class SASPerceiverIO(nn.Module):
         sas_model_decoder: TaskDecoder,
         sas_param_decoder: TaskDecoder,
         n_bins: int = 256,
-        seq_len: int = 256
+        seq_len: int = 256,
+        use_scale: bool = True,
     ):
         """Constructor.
 
@@ -116,7 +116,7 @@ class SASPerceiverIO(nn.Module):
         self.sas_model_decoder = sas_model_decoder
         self.sas_param_decoder = sas_param_decoder
         self.embedding = TokenScaleAndPositionEmbedding(
-            encoder.latent_dim, n_bins, seq_len)
+            encoder.latent_dim, n_bins, seq_len, use_scale)
 
     def forward(
         self,

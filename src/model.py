@@ -52,6 +52,7 @@ class SASPerceiverIOModel(pl.LightningModule):
                  batch_size: int = 256,
                  weight_decay: float = 0.0,
                  n_bins: int = 256,
+                 use_scale: bool = True,
                  clf_weight: float = 1.0,
                  reg_weight: float = 1.0,
                  reg_obj: str = 'mae',
@@ -99,7 +100,7 @@ class SASPerceiverIOModel(pl.LightningModule):
                                              attention_dropout=param_dec_attn_dropout)
 
         self.perceiver = SASPerceiverIO(
-            self.encoder, self.sas_model_decoder, self.sas_param_decoder, n_bins, seq_len)
+            self.encoder, self.sas_model_decoder, self.sas_param_decoder, n_bins, seq_len, use_scale)
 
     def forward(self, x):
         return self.perceiver(x)

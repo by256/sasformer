@@ -23,7 +23,8 @@ def objective(trial, namespace, root_dir, data_dir):
     param_dec_dropout = trial.suggest_float(
         'param_dec_dropout', 0.0, 0.5, step=0.05)
     params_i = {
-        'n_bins': 256,  # trial.suggest_categorical('n_bins', [128, 256, 512]),
+        'n_bins': 2048,  # trial.suggest_categorical('n_bins', [256, 512]),
+        'use_scale': trial.suggest_categorical('use_scale', [0, 1]),
         'num_latents': trial.suggest_categorical('num_latents', [32, 48, 64, 96, 128]),
         'latent_dim': trial.suggest_categorical('latent_dim', [256, 512, 1024]),
         # encoder args
