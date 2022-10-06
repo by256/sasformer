@@ -38,7 +38,7 @@ def objective(trial, namespace, root_dir, data_dir):
         'enc_dropout': enc_dropout,
         'enc_cross_attention_dropout': enc_dropout,
         'enc_self_attention_dropout': enc_dropout,
-        'enc_cross_att_qkv_trans': trial.suggest_categorical('enc_cross_att_qkv_trans', ['linear', 'conv', 'gru']),
+        'enc_cross_att_qkv_trans': trial.suggest_categorical('enc_cross_att_qkv_trans', ['linear', 'conv']),
         # model decoder args
         # 'model_dec_widening_factor': trial.suggest_int('model_dec_widening_factor', 1, 2),
         'model_dec_num_heads': trial.suggest_categorical('model_dec_num_heads', [2, 4, 8]),
