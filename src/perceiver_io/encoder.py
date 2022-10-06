@@ -4,7 +4,6 @@ import torch
 from torch import nn
 
 from perceiver_io.attention import CrossAttention, SelfAttention
-from perceiver_io.positional_encoding import PositionalEncoding
 
 
 class PerceiverEncoder(nn.Module):
