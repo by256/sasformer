@@ -52,7 +52,7 @@ def objective(trial, namespace, root_dir, data_dir):
         'param_dec_dropout': param_dec_dropout,
         'param_dec_attn_dropout': param_dec_dropout,
         # loss args
-        'clf_weight': 0.1,
+        'clf_weight': 1.0,
         'reg_weight': trial.suggest_categorical('reg_weight', np.logspace(-2, 2, 14)),
         'reg_obj': trial.suggest_categorical('reg_obj', ['mae', 'mse']),
     }
