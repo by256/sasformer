@@ -193,7 +193,8 @@ class SASDataset:
         return len(self.df)
 
     def __getitem__(self, idx):
-        I_q = self.I_q_transformed[idx, :, None]
+        # I_q = self.I_q_transformed[idx, :, None]
+        I_q = self.x_scaler.transform(self.I_q[idx, :][None, :]).T
         reg_targets = self.reg_targets_transformed[idx, :]
         return torch.LongTensor(I_q), self.clf_labels[idx], torch.Tensor(reg_targets)
 
