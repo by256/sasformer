@@ -68,7 +68,7 @@ def objective(trial, namespace, root_dir, data_dir):
 
     # find largest batch_size that fits in memory
     batch_size = find_batch_size_one_gpu(params_i, datamodule)
-    batch_size = int(batch_size * 0.85)  # buffer
+    batch_size = int(batch_size * 0.7)  # buffer
     params_i['batch_size'] = batch_size
     datamodule.batch_size = batch_size
     params_i['lr'] = 7.8125e-7 * batch_size / namespace.gpus  # sorcery
