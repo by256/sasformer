@@ -82,7 +82,7 @@ def objective(trial, namespace, root_dir, data_dir):
     logger = WandbLogger(project=namespace.project_name,
                          save_dir=os.path.join(root_dir, namespace.log_dir))
 
-    early_stopping = EarlyStopping(monitor='val/es_metric', patience=15)
+    early_stopping = EarlyStopping(monitor='val/es_metric', patience=50)
     trainer = pl.Trainer(gpus=namespace.gpus,
                          max_epochs=namespace.max_epochs,
                          gradient_clip_val=namespace.gradient_clip_val,

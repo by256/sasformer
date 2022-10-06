@@ -159,7 +159,7 @@ class SASPerceiverIOModel(pl.LightningModule):
                                                      warmup_epochs=int(
                                                          0.05*self.trainer.max_epochs),
                                                      max_epochs=self.trainer.max_epochs,
-                                                     eta_min=self.hparams.lr/10.0)
+                                                     eta_min=self.hparams.lr/1000.0)
         return {'optimizer': optimizer,
                 'lr_scheduler': {'scheduler': lr_scheduler}}
 
@@ -175,7 +175,7 @@ class SASPerceiverIOModel(pl.LightningModule):
                  on_epoch=True, on_step=False, prog_bar=True)  # torchmetrics doesn't need sync_dist
         self.log(f'{mode}/mae', mae,
                  on_epoch=True, on_step=False, prog_bar=True, sync_dist=True)
-        self.log(f'{mode}/es_metric', (mae/370)+(1-acc),
+        self.log(f'{mode}/es_metric', (mae/580)+(1-acc),
                  on_epoch=True, on_step=False, sync_dist=True)
         if lr is not None and mode == 'train':
             self.log('trainer/lr', lr, on_epoch=True,
