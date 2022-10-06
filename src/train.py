@@ -79,6 +79,7 @@ def load_hparams_from_namespace(namespace):
                'enc_dropout': namespace.enc_dropout,
                'enc_cross_attention_dropout': namespace.enc_dropout,
                'enc_self_attention_dropout': namespace.enc_dropout,
+               'enc_cross_att_qkv_trans': namespace.enc_cross_att_qkv_trans, 
                'model_dec_widening_factor': namespace.model_dec_widening_factor,
                'model_dec_num_heads': namespace.model_dec_num_heads,
                'model_dec_qk_out_dim': namespace.model_dec_qk_out_dim,
@@ -95,6 +96,7 @@ def load_hparams_from_namespace(namespace):
                'n_bins': namespace.n_bins,
                'seq_len': namespace.seq_len,
                'use_scale': namespace.use_scale,
+               'use_latent_pos_emb': namespace.use_latent_pos_emb,
                'clf_weight': namespace.clf_weight,
                'reg_weight': namespace.reg_weight,
                'reg_obj': namespace.reg_obj}
@@ -136,6 +138,8 @@ if __name__ == '__main__':
                         type=int, metavar='enc_self_attn_widening_factor')
     parser.add_argument('--enc_dropout', default=0.0,
                         type=float, metavar='enc_dropout')
+    parser.add_argument('--enc_cross_att_qkv_trans', default='linear',
+                        type=str, metavar='enc_cross_att_qkv_trans')
     # model (clf) decoder args
     parser.add_argument('--model_dec_widening_factor', default=1,
                         type=int, metavar='model_dec_widening_factor')
@@ -164,6 +168,8 @@ if __name__ == '__main__':
                         type=int, help='I(q) sequence length.', metavar='seq_len')
     parser.add_argument('--use_scale', default=1,
                         type=int, help='Use scale embeddings.', metavar='use_scale')
+    parser.add_argument('--use_latent_pos_emb', default=0,
+                        type=int, help='Use pos embeddings on latents.', metavar='use_latent_pos_emb')
     parser.add_argument('--clf_weight', default=1.0,
                         type=float, metavar='clf_weight')
     parser.add_argument('--reg_weight', default=1.0,
@@ -171,7 +177,7 @@ if __name__ == '__main__':
     parser.add_argument('--reg_obj', default='mse',
                         type=str, metavar='reg_obj')
     # lightning trainer args
-    parser.add_argument('--batch_size', default=2048,
+    parser.add_argument('--batch_size', default=1024,
                         type=int, metavar='batch_size')
     parser.add_argument('--batch_size_auto', default=0,
                         type=int, metavar='batch_size_auto')

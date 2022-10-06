@@ -27,14 +27,13 @@ class TokenScaleAndPositionEmbedding(nn.Module):
         self.use_scale = use_scale
         self.token_embedding = nn.Embedding(
             num_embeddings=n_bins, embedding_dim=latent_dim)
-        self.pos_embedding = sinusoids(seq_len, latent_dim).unsqueeze(0)
+        pos_embedding = sinusoids(seq_len, latent_dim).unsqueeze(0)
+        self.register_buffer("pos_embedding", pos_embedding)
         if use_scale:
             self.scale_embedding = nn.Embedding(
                 num_embeddings=n_bins, embedding_dim=latent_dim)
 
     def forward(self, x):
-        if self.pos_embedding.device != x.device:
-            self.pos_embedding = self.pos_embedding.to(x.device)
         # TODO: remove token squeeze after updating data
         token = self.token_embedding(x[:, :-1, :]).squeeze()
         pos = self.pos_embedding
@@ -103,6 +102,7 @@ class SASPerceiverIO(nn.Module):
         n_bins: int = 256,
         seq_len: int = 256,
         use_scale: bool = True,
+        use_latent_pos_emb: bool = False,
     ):
         """Constructor.
 
@@ -117,6 +117,12 @@ class SASPerceiverIO(nn.Module):
         self.sas_param_decoder = sas_param_decoder
         self.embedding = TokenScaleAndPositionEmbedding(
             encoder.latent_dim, n_bins, seq_len, use_scale)
+        if use_latent_pos_emb:
+            latent_pos_emb = sinusoids(
+                encoder.num_latents, encoder.latent_dim).unsqueeze(0)
+            self.register_buffer("latent_pos_emb", latent_pos_emb)
+
+        self.use_latent_pos_emb = use_latent_pos_emb
 
     def forward(
         self,
@@ -140,6 +146,8 @@ class SASPerceiverIO(nn.Module):
         """
         emb = self.embedding(inputs)
         latents = self.encoder(emb, kv_mask=input_mask)
+        if self.use_latent_pos_emb:
+            latents = latents + self.latent_pos_emb
         clf_outputs = self.sas_model_decoder(latents)
         reg_outputs = self.sas_param_decoder(latents)
         return clf_outputs, reg_outputs

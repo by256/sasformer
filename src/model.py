@@ -38,6 +38,7 @@ class SASPerceiverIOModel(pl.LightningModule):
                  enc_dropout: float = 0.1,
                  enc_cross_attention_dropout: float = 0.1,
                  enc_self_attention_dropout: float = 0.1,
+                 enc_cross_att_qkv_trans: str = 'linear',
                  model_dec_widening_factor: int = 3,
                  model_dec_num_heads: int = 1,
                  model_dec_qk_out_dim: int = 64,
@@ -53,6 +54,7 @@ class SASPerceiverIOModel(pl.LightningModule):
                  weight_decay: float = 0.0,
                  n_bins: int = 256,
                  use_scale: bool = True,
+                 use_latent_pos_emb: bool = False,
                  clf_weight: float = 1.0,
                  reg_weight: float = 1.0,
                  reg_obj: str = 'mae',
@@ -81,7 +83,8 @@ class SASPerceiverIOModel(pl.LightningModule):
                                         self_attn_widening_factor=enc_self_attn_widening_factor,
                                         dropout=enc_dropout,
                                         cross_attention_dropout=enc_cross_attention_dropout,
-                                        self_attention_dropout=enc_self_attention_dropout)
+                                        self_attention_dropout=enc_self_attention_dropout,
+                                        cross_att_qkv_trans=enc_cross_att_qkv_trans)
         # clf decoder
         self.sas_model_decoder = TaskDecoder(num_outputs=num_classes,
                                              latent_dim=latent_dim,
@@ -100,7 +103,7 @@ class SASPerceiverIOModel(pl.LightningModule):
                                              attention_dropout=param_dec_attn_dropout)
 
         self.perceiver = SASPerceiverIO(
-            self.encoder, self.sas_model_decoder, self.sas_param_decoder, n_bins, seq_len, use_scale)
+            self.encoder, self.sas_model_decoder, self.sas_param_decoder, n_bins, seq_len, use_scale, use_latent_pos_emb)
 
     def forward(self, x):
         return self.perceiver(x)
