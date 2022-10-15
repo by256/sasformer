@@ -129,7 +129,7 @@ class MinScaler(BaseEstimator, TransformerMixin):
 class TargetTransformer(BaseEstimator, TransformerMixin):
     def __init__(self):
         self.log_indices = None
-        self.unit_min_scaler = MinScaler(new_min=100)
+        # self.unit_min_scaler = MinScaler(new_min=100)
         self.scaler = StandardScaler()
 
     def fit(self, X):
@@ -138,14 +138,14 @@ class TargetTransformer(BaseEstimator, TransformerMixin):
         log_indices = np.array(
             [i for i in range(f) if not self.check_col_is_uniform_(X[:, i])], dtype=int)
         self.log_indices = log_indices
-        X = self.unit_min_scaler.fit_transform(X)
+        # X = self.unit_min_scaler.fit_transform(X)
         X[:, log_indices] = np.log(X[:, log_indices])
         self.scaler.fit(X)
         return self
 
     def transform(self, X):
         X = copy.deepcopy(X)
-        X = self.unit_min_scaler.transform(X)
+        # X = self.unit_min_scaler.transform(X)
         X[:, self.log_indices] = np.log(X[:, self.log_indices])
         return self.scaler.transform(X)
 
@@ -153,7 +153,7 @@ class TargetTransformer(BaseEstimator, TransformerMixin):
         X = copy.deepcopy(X)
         X = self.scaler.inverse_transform(X)
         X[:, self.log_indices] = np.exp(X[:, self.log_indices])
-        X = self.unit_min_scaler.inverse_transform(X)
+        # X = self.unit_min_scaler.inverse_transform(X)
         return X
 
     def check_col_is_uniform_(self, y_i):

@@ -79,7 +79,7 @@ def load_hparams_from_namespace(namespace):
                'enc_dropout': namespace.enc_dropout,
                'enc_cross_attention_dropout': namespace.enc_dropout,
                'enc_self_attention_dropout': namespace.enc_dropout,
-               'enc_cross_att_qkv_trans': namespace.enc_cross_att_qkv_trans, 
+               'enc_cross_att_qkv_trans': namespace.enc_cross_att_qkv_trans,
                'model_dec_widening_factor': namespace.model_dec_widening_factor,
                'model_dec_num_heads': namespace.model_dec_num_heads,
                'model_dec_qk_out_dim': namespace.model_dec_qk_out_dim,
