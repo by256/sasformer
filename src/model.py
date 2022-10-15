@@ -195,7 +195,7 @@ class SASPerceiverIOModel(pl.LightningModule):
             self.register_buffer('scaler_std_', scaler_std_, persistent=False)
             # scaler_min_ = torch.Tensor(
             #     self.target_transformer.unit_min_scaler.min_).type_as(y)
-            self.register_buffer('scaler_min_', scaler_min_, persistent=False)
+            # self.register_buffer('scaler_min_', scaler_min_, persistent=False)
             self._target_transformer_buffers_registered = True
 
         y = y*self.scaler_std_ + self.scaler_mu_
