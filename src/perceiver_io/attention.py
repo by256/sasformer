@@ -17,8 +17,7 @@ class MultiHeadAttention(nn.Module):
         v_out_dim: Optional[int] = None,
         output_dim: Optional[int] = None,
         num_heads: int = 1,
-        dropout: float = 0.0,
-        qkv_trans: str = 'linear'
+        dropout: float = 0.0
     ):
         """Constructor.
 
@@ -46,24 +45,10 @@ class MultiHeadAttention(nn.Module):
         self.num_heads = num_heads
         self.qk_head_dim = qk_out_dim // num_heads
         self.v_head_dim = v_out_dim // num_heads
-        self.qkv_trans = qkv_trans
 
-        if qkv_trans == 'linear':
-            self.k = nn.Linear(kv_dim, qk_out_dim)
-            self.q = nn.Linear(q_dim, qk_out_dim)
-            self.v = nn.Linear(kv_dim, v_out_dim)
-        elif qkv_trans == 'conv':
-            self.k = nn.Conv1d(kv_dim, qk_out_dim, kernel_size=3, padding=1)
-            self.q = nn.Conv1d(q_dim, qk_out_dim, kernel_size=3, padding=1)
-            self.v = nn.Conv1d(kv_dim, v_out_dim, kernel_size=3, padding=1)
-        elif qkv_trans == 'gru':
-            self.k = nn.GRU(kv_dim, qk_out_dim, batch_first=True)
-            self.q = nn.GRU(q_dim, qk_out_dim, batch_first=True)
-            self.v = nn.GRU(kv_dim, v_out_dim, batch_first=True)
-        else:
-            raise ValueError(
-                f'qkv_trans should be either linear, conv or gru.')
-
+        self.k = nn.Linear(kv_dim, qk_out_dim)
+        self.q = nn.Linear(q_dim, qk_out_dim)
+        self.v = nn.Linear(kv_dim, v_out_dim)
         self.projection = nn.Linear(v_out_dim, output_dim)
         self.dropout = nn.Dropout(dropout)
         self.scale = self.qk_head_dim ** -0.5
@@ -83,16 +68,7 @@ class MultiHeadAttention(nn.Module):
         Returns:
             Tensor of shape (B, N, D)
         """
-        # breakpoint()
-        if self.qkv_trans == 'conv':
-            k = self.k(inputs_kv.permute(0, 2, 1)).permute(0, 2, 1)
-            q = self.q(inputs_q.permute(0, 2, 1)).permute(0, 2, 1)
-            v = self.v(inputs_kv.permute(0, 2, 1)).permute(0, 2, 1)
-        else:
-            k, q, v = self.k(inputs_kv), self.q(inputs_q), self.v(inputs_kv)
-        # breakpoint()
-        if self.qkv_trans == 'gru':
-            k, q, v = k[0], q[0], v[0]
+        k, q, v = self.k(inputs_kv), self.q(inputs_q), self.v(inputs_kv)
         k = rearrange(k, 'b s (n h) -> b n s h', h=self.qk_head_dim)
         q = rearrange(q, 'b s (n h) -> b n s h', h=self.qk_head_dim)
         v = rearrange(v, 'b s (n h) -> b n s h', h=self.v_head_dim)
@@ -217,8 +193,7 @@ class CrossAttention(nn.Module):
         num_heads: int = 1,
         use_query_residual: bool = False,
         dropout: float = 0.0,
-        attention_dropout: float = 0.0,
-        qkv_trans: str = 'linear'
+        attention_dropout: float = 0.0
     ):
         """Constructor.
 
@@ -249,8 +224,7 @@ class CrossAttention(nn.Module):
             v_out_dim=v_out_dim,
             output_dim=q_dim,
             num_heads=num_heads,
-            dropout=attention_dropout,
-            qkv_trans=qkv_trans
+            dropout=attention_dropout
         )
         self.dropout = nn.Dropout(dropout)
         self.mlp = FeedForward(q_dim, widening_factor, dropout)

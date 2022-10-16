@@ -38,7 +38,6 @@ class SASPerceiverIOModel(pl.LightningModule):
                  enc_dropout: float = 0.1,
                  enc_cross_attention_dropout: float = 0.1,
                  enc_self_attention_dropout: float = 0.1,
-                 enc_cross_att_qkv_trans: str = 'linear',
                  model_dec_widening_factor: int = 3,
                  model_dec_num_heads: int = 1,
                  model_dec_qk_out_dim: int = 64,
@@ -51,10 +50,8 @@ class SASPerceiverIOModel(pl.LightningModule):
                  param_dec_attn_dropout: float = 0.2,
                  lr: float = 5e-4,
                  batch_size: int = 256,
-                 weight_decay: float = 0.0,
+                 weight_decay: float = 1e-7,
                  n_bins: int = 256,
-                 use_scale: bool = True,
-                 use_latent_pos_emb: bool = False,
                  clf_weight: float = 1.0,
                  reg_weight: float = 1.0,
                  reg_obj: str = 'mae',
@@ -83,8 +80,7 @@ class SASPerceiverIOModel(pl.LightningModule):
                                         self_attn_widening_factor=enc_self_attn_widening_factor,
                                         dropout=enc_dropout,
                                         cross_attention_dropout=enc_cross_attention_dropout,
-                                        self_attention_dropout=enc_self_attention_dropout,
-                                        cross_att_qkv_trans=enc_cross_att_qkv_trans)
+                                        self_attention_dropout=enc_self_attention_dropout)
         # clf decoder
         self.sas_model_decoder = TaskDecoder(num_outputs=num_classes,
                                              latent_dim=latent_dim,
@@ -103,7 +99,7 @@ class SASPerceiverIOModel(pl.LightningModule):
                                              attention_dropout=param_dec_attn_dropout)
 
         self.perceiver = SASPerceiverIO(
-            self.encoder, self.sas_model_decoder, self.sas_param_decoder, n_bins, seq_len, use_scale, use_latent_pos_emb)
+            self.encoder, self.sas_model_decoder, self.sas_param_decoder, n_bins, seq_len)
 
     def forward(self, x):
         return self.perceiver(x)
@@ -152,14 +148,14 @@ class SASPerceiverIOModel(pl.LightningModule):
             return y_clf_pred, y_reg_pred
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(),
+        optimizer = torch.optim.AdamW(self.parameters(),
                                      lr=self.hparams.lr,
                                      weight_decay=self.hparams.weight_decay)
         lr_scheduler = LinearWarmupCosineAnnealingLR(optimizer,
                                                      warmup_epochs=int(
                                                          0.05*self.trainer.max_epochs),
                                                      max_epochs=self.trainer.max_epochs,
-                                                     eta_min=self.hparams.lr/1000.0)
+                                                     eta_min=self.hparams.lr/10.0)
         return {'optimizer': optimizer,
                 'lr_scheduler': {'scheduler': lr_scheduler}}
 
@@ -175,7 +171,7 @@ class SASPerceiverIOModel(pl.LightningModule):
                  on_epoch=True, on_step=False, prog_bar=True)  # torchmetrics doesn't need sync_dist
         self.log(f'{mode}/mae', mae,
                  on_epoch=True, on_step=False, prog_bar=True, sync_dist=True)
-        self.log(f'{mode}/es_metric', (mae/580)+(1-acc),
+        self.log(f'{mode}/es_metric', (mae/370)+(1-acc),
                  on_epoch=True, on_step=False, sync_dist=True)
         if lr is not None and mode == 'train':
             self.log('trainer/lr', lr, on_epoch=True,
@@ -193,12 +189,8 @@ class SASPerceiverIOModel(pl.LightningModule):
             scaler_std_ = torch.Tensor(
                 self.target_transformer.scaler.scale_).type_as(y)
             self.register_buffer('scaler_std_', scaler_std_, persistent=False)
-            # scaler_min_ = torch.Tensor(
-            #     self.target_transformer.unit_min_scaler.min_).type_as(y)
-            # self.register_buffer('scaler_min_', scaler_min_, persistent=False)
             self._target_transformer_buffers_registered = True
 
         y = y*self.scaler_std_ + self.scaler_mu_
         y[:, self.log_indices_] = torch.exp(y[:, self.log_indices_])
-        # y = y - 1 + self.scaler_min_
         return y

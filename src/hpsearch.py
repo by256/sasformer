@@ -23,9 +23,7 @@ def objective(trial, namespace, root_dir, data_dir):
     param_dec_dropout = trial.suggest_float(
         'param_dec_dropout', 0.0, 0.5, step=0.05)
     params_i = {
-        'n_bins': 2048,  # trial.suggest_categorical('n_bins', [256, 512]),
-        'use_scale': trial.suggest_categorical('use_scale', [0, 1]),
-        'use_latent_pos_emb': trial.suggest_categorical('use_latent_pos_emb', [0, 1]),
+        'n_bins': 256,  # trial.suggest_categorical('n_bins', [128, 256, 512]),
         'num_latents': trial.suggest_categorical('num_latents', [32, 48, 64, 96, 128]),
         'latent_dim': trial.suggest_categorical('latent_dim', [256, 512, 1024]),
         # encoder args
@@ -38,7 +36,6 @@ def objective(trial, namespace, root_dir, data_dir):
         'enc_dropout': enc_dropout,
         'enc_cross_attention_dropout': enc_dropout,
         'enc_self_attention_dropout': enc_dropout,
-        'enc_cross_att_qkv_trans': trial.suggest_categorical('enc_cross_att_qkv_trans', ['linear', 'conv']),
         # model decoder args
         # 'model_dec_widening_factor': trial.suggest_int('model_dec_widening_factor', 1, 2),
         'model_dec_num_heads': trial.suggest_categorical('model_dec_num_heads', [2, 4, 8]),
@@ -82,7 +79,7 @@ def objective(trial, namespace, root_dir, data_dir):
     logger = WandbLogger(project=namespace.project_name,
                          save_dir=os.path.join(root_dir, namespace.log_dir))
 
-    early_stopping = EarlyStopping(monitor='val/es_metric', patience=50)
+    early_stopping = EarlyStopping(monitor='val/es_metric', patience=15)
     trainer = pl.Trainer(gpus=namespace.gpus,
                          max_epochs=namespace.max_epochs,
                          gradient_clip_val=namespace.gradient_clip_val,

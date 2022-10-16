@@ -27,8 +27,7 @@ class PerceiverEncoder(nn.Module):
         use_query_residual: bool = False,
         dropout: float = 0.0,
         cross_attention_dropout: float = 0.0,
-        self_attention_dropout: float = 0.0,
-        cross_att_qkv_trans: str = 'gru',
+        self_attention_dropout: float = 0.0
     ):
         """Constructor.
 
@@ -59,7 +58,6 @@ class PerceiverEncoder(nn.Module):
                 Defaults to 0.
         """
         super().__init__()
-        self.num_latents = num_latents
         self.latent_dim = latent_dim
         self.latents = nn.Parameter(torch.randn(num_latents, latent_dim))
 
@@ -72,8 +70,7 @@ class PerceiverEncoder(nn.Module):
             v_out_dim=v_out_dim,
             use_query_residual=use_query_residual,
             dropout=dropout,
-            attention_dropout=cross_attention_dropout,
-            qkv_trans=cross_att_qkv_trans
+            attention_dropout=cross_attention_dropout
         )
         block = self.self_attention_block(
             num_self_attn_per_block,

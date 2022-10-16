@@ -44,6 +44,13 @@ def raw_data_to_df(data_dir: str, sub_dir: str = 'large', step: int = 2) -> pd.D
         param_values_fn = '{}_pars.npy'.format(model_name)
         param_values = np.load(os.path.join(raw_data_dir, param_values_fn))
 
+        # remove polydispersity regression targets
+        if '{}_polydispersity'.format(model_name) in param_names:
+            pd_mask = ['polydispersity' in x for x in param_names]
+            param_names = [param_names[i]
+                           for i, x in enumerate(pd_mask) if not x]
+            param_values = param_values[:, np.bitwise_not(pd_mask)]
+
         n_model_rows = model_I_q.shape[0]
         for i in range(n_model_rows):
             I_q = {'I(q={})'.format(q_values[j]): model_I_q[i, j] for j in range(n_q)}  # nopep8
@@ -96,65 +103,31 @@ class IqTransformer(BaseEstimator, TransformerMixin):
         return np.concatenate([x_trans, scale[:, None]], axis=-1)
 
 
-class MinScaler(BaseEstimator, TransformerMixin):
-    """Scales data feature-wise such that min of each feature is new_min.
-
-    The transformation is given by::
-        X_scaled = X - X.min(axis=0) + new_min
-    """
-
-    def __init__(self, new_min=1):
-        self.new_min = new_min
-        self.min_ = None
-
-    def fit(self, X):
-        X = copy.deepcopy(X)
-        self.min_ = np.nanmin(X, axis=0, keepdims=True)
-        return self
-
-    def transform(self, X):
-        X = copy.deepcopy(X)
-        return X - self.min_ + self.new_min
-
-    def fit_transform(self, X):
-        X = copy.deepcopy(X)
-        self.fit(X)
-        return self.transform(X)
-
-    def inverse_transform(self, X):
-        X = copy.deepcopy(X)
-        return X - self.new_min + self.min_
-
-
 class TargetTransformer(BaseEstimator, TransformerMixin):
     def __init__(self):
         self.log_indices = None
-        # self.unit_min_scaler = MinScaler(new_min=100)
         self.scaler = StandardScaler()
 
-    def fit(self, X):
-        X = copy.deepcopy(X)
-        n, f = X.shape
+    def fit(self, x):
+        x = copy.deepcopy(x)
+        n, f = x.shape
         log_indices = np.array(
-            [i for i in range(f) if not self.check_col_is_uniform_(X[:, i])], dtype=int)
+            [i for i in range(f) if not self.check_col_is_uniform_(x[:, i])], dtype=int)
         self.log_indices = log_indices
-        # X = self.unit_min_scaler.fit_transform(X)
-        X[:, log_indices] = np.log(X[:, log_indices])
-        self.scaler.fit(X)
+        x[:, log_indices] = np.log(x[:, log_indices])
+        self.scaler.fit(x)
         return self
 
-    def transform(self, X):
-        X = copy.deepcopy(X)
-        # X = self.unit_min_scaler.transform(X)
-        X[:, self.log_indices] = np.log(X[:, self.log_indices])
-        return self.scaler.transform(X)
+    def transform(self, x):
+        x = copy.deepcopy(x)
+        x[:, self.log_indices] = np.log(x[:, self.log_indices])
+        return self.scaler.transform(x)
 
-    def inverse_transform(self, X):
-        X = copy.deepcopy(X)
-        X = self.scaler.inverse_transform(X)
-        X[:, self.log_indices] = np.exp(X[:, self.log_indices])
-        # X = self.unit_min_scaler.inverse_transform(X)
-        return X
+    def inverse_transform(self, x):
+        x = copy.deepcopy(x)
+        x = self.scaler.inverse_transform(x)
+        x[:, self.log_indices] = np.exp(x[:, self.log_indices])
+        return x
 
     def check_col_is_uniform_(self, y_i):
         y_i = y_i[~np.isnan(y_i)]
@@ -227,7 +200,7 @@ class SASDataModule(pl.LightningDataModule):
         if self.subsample is not None:
             train = train.sample(n=self.subsample, random_state=self.seed)
         test = pd.read_parquet(os.path.join(
-            self.data_dir, self.sub_dir, 'test.parquet'))  # .sample(1024, random_state=256).reset_index(drop=True)
+            self.data_dir, self.sub_dir, 'test.parquet'))
 
         self.num_clf = len(np.unique(train['model']))
         self.num_reg = len(
@@ -244,10 +217,12 @@ class SASDataModule(pl.LightningDataModule):
         input_transformer = IqTransformer(self.n_bins)
         input_transformer.fit(train[Iq_cols].values)
         self.input_transformer = input_transformer
+
         reg_target_cols = [x for x in train.columns if x.startswith('reg')]
         target_transformer = TargetTransformer()
         target_transformer.fit(train[reg_target_cols].values)
         self.target_transformer = target_transformer
+
         # PyTorch dataset classes
         self.train_dataset = SASDataset(
             train, input_transformer, target_transformer)
