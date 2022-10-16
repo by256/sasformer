@@ -26,8 +26,8 @@ class TokenScaleAndPositionEmbedding(nn.Module):
         super().__init__()
         self.token_embedding = nn.Embedding(
             num_embeddings=n_bins, embedding_dim=latent_dim)
-        self.scale_embedding = nn.Embedding(
-            num_embeddings=n_bins, embedding_dim=latent_dim)
+        # self.scale_embedding = nn.Embedding(
+        #     num_embeddings=n_bins, embedding_dim=latent_dim)
         self.pos_embedding = sinusoids(seq_len, latent_dim).unsqueeze(0)
 
     def forward(self, x):
@@ -35,9 +35,9 @@ class TokenScaleAndPositionEmbedding(nn.Module):
             self.pos_embedding = self.pos_embedding.to(x.device)
         # TODO: remove token squeeze after updating data
         token = self.token_embedding(x[:, :-1, :]).squeeze()
-        scale = self.scale_embedding(x[:, -1, :])
         pos = self.pos_embedding
-        return token + pos + scale
+        # scale = self.scale_embedding(x[:, -1, :])
+        return token + pos# + scale
 
 
 class PerceiverIO(nn.Module):
