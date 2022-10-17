@@ -97,10 +97,9 @@ class IqTransformer(BaseEstimator, TransformerMixin):
         return x
 
     def input_transform_(self, x):
-        # return np.log(quotient_transform(x))
-        scale = (x[:, 1:] / scalar_neutralization(x))[:, 0]
-        x_trans = np.log(quotient_transform(x**2))
-        return np.concatenate([x_trans, scale[:, None]], axis=-1)
+        return np.log(quotient_transform(x**2))
+        # return np.log(scalar_neutralization(x**2))
+        # return np.log(x**2) / np.max(np.log(x**2), axis=0, keepdims=True)
 
 
 class TargetTransformer(BaseEstimator, TransformerMixin):

@@ -21,23 +21,20 @@ def sinusoids(length, channels, max_timescale=512):
     return torch.cat([torch.sin(scaled_time), torch.cos(scaled_time)], dim=1)
 
 
-class TokenScaleAndPositionEmbedding(nn.Module):
+class TokenAndPositionEmbedding(nn.Module):
     def __init__(self, latent_dim, n_bins=256, seq_len=256):
         super().__init__()
         self.token_embedding = nn.Embedding(
             num_embeddings=n_bins, embedding_dim=latent_dim)
-        # self.scale_embedding = nn.Embedding(
-        #     num_embeddings=n_bins, embedding_dim=latent_dim)
         self.pos_embedding = sinusoids(seq_len, latent_dim).unsqueeze(0)
 
     def forward(self, x):
         if self.pos_embedding.device != x.device:
             self.pos_embedding = self.pos_embedding.to(x.device)
         # TODO: remove token squeeze after updating data
-        token = self.token_embedding(x[:, :-1, :]).squeeze()
+        token = self.token_embedding(x).squeeze()
         pos = self.pos_embedding
-        # scale = self.scale_embedding(x[:, -1, :])
-        return token + pos# + scale
+        return token + pos
 
 
 class PerceiverIO(nn.Module):
@@ -109,7 +106,7 @@ class SASPerceiverIO(nn.Module):
         self.encoder = encoder
         self.sas_model_decoder = sas_model_decoder
         self.sas_param_decoder = sas_param_decoder
-        self.embedding = TokenScaleAndPositionEmbedding(
+        self.embedding = TokenAndPositionEmbedding(
             encoder.latent_dim, n_bins, seq_len)
 
     def forward(
