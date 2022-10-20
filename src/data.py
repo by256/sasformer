@@ -14,53 +14,50 @@ from torch.utils.data import DataLoader
 from typing import Tuple, Optional
 
 
-def raw_data_to_df(data_dir: str, sub_dir: str = 'large', step: int = 2) -> pd.DataFrame:
+def load_param_names(fp):
+    assert fp.endswith('_par_names.json')
+    with open(fp, 'r') as f:
+        param_names = json.load(f)
+    return param_names
 
-    data_file_exts = ['pars.npy', 'par_names.json', 'data.npy']
-    q_values_path = os.path.join(data_dir, 'q_values.npy')
-    q_values = np.load(q_values_path)[::step]
-    n_q = len(q_values)
 
-    raw_data_dir = os.path.join(data_dir, 'raw', sub_dir)
+def raw_data_to_df(data_dir: str, step: int = 1):
+    fns = sorted(os.listdir(data_dir))
+    model_names = [x.split('_data.npy')[0]
+                   for x in fns if x.endswith('data.npy')]
 
-    model_names = [x for x in os.listdir(
-        raw_data_dir) if x.endswith('_q_values.npy')]
-    model_names = sorted([x.split('_q_values.npy')[0] for x in model_names])
-
-    data = list()
+    model_dfs = []
 
     for model_idx, model_name in enumerate(model_names):
-        # I(q)
-        model_I_q_fn = '{}_data.npy'.format(model_name)
-        model_I_q = np.load(os.path.join(
-            raw_data_dir, model_I_q_fn))[:, ::step]
+        model_data = np.load(os.path.join(data_dir, f'{model_name}_data.npy'))
+        param_names = load_param_names(os.path.join(
+            data_dir, f'{model_name}_par_names.json'))
+        params = np.load(os.path.join(data_dir, f'{model_name}_pars.npy'))
+        q_values = np.load(os.path.join(
+            data_dir, f'{model_name}_q_values.npy'))[::step]
 
-        # regression targets
-        param_names_fn = '{}_par_names.json'.format(model_name)
-        with open(os.path.join(raw_data_dir, param_names_fn), 'rb') as f:
-            param_names = json.load(f)
-        param_names = ['reg-model={}-param={}'.format(
-            model_name, param_name) for param_name in param_names]
-        param_values_fn = '{}_pars.npy'.format(model_name)
-        param_values = np.load(os.path.join(raw_data_dir, param_values_fn))
+        x_columns = [f'I(q={q})' for q in q_values]
+        x_df = pd.DataFrame(model_data, columns=x_columns)
+        # clf targets
+        x_df['model'] = [model_name]*x_df.shape[0]
+        x_df['model_label'] = [model_idx]*x_df.shape[0]
+        # reg targets
+        if len(param_names) == 0:
+            y_reg_df = pd.DataFrame()
+        else:
+            y_columns = [
+                f'reg-model={model_name}-param={x}' for x in param_names]
+            y_reg_df = pd.DataFrame(params, columns=y_columns)
+        model_df = pd.concat([x_df, y_reg_df], axis=1)
+        # filters
+        model_df = model_df[model_df.columns.drop(
+            list(model_df.filter(regex='polydispersity')))]
+        model_df = model_df[model_df.columns.drop(
+            list(model_df.filter(regex='sld')))]
 
-        # remove polydispersity regression targets
-        if '{}_polydispersity'.format(model_name) in param_names:
-            pd_mask = ['polydispersity' in x for x in param_names]
-            param_names = [param_names[i]
-                           for i, x in enumerate(pd_mask) if not x]
-            param_values = param_values[:, np.bitwise_not(pd_mask)]
+        model_dfs.append(model_df)
 
-        n_model_rows = model_I_q.shape[0]
-        for i in range(n_model_rows):
-            I_q = {'I(q={})'.format(q_values[j]): model_I_q[i, j] for j in range(n_q)}  # nopep8
-            clf_labels = {'model': model_name, 'model_label': model_idx}
-            reg_targets = {param_names[j]: param_values[i, j]
-                           for j in range(len(param_names))}
-            row_dict = I_q | clf_labels | reg_targets
-            data.append(row_dict)
-
-    return pd.DataFrame(data)
+    return pd.concat(model_dfs, axis=0, ignore_index=True)
 
 
 def quotient_transform(x):
