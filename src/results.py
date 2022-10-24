@@ -55,10 +55,10 @@ if __name__ == '__main__':
     datamodule = SASDataModule(data_dir=data_dir,
                                sub_dir=namespace.sub_dir,
                                n_bins=model.hparams['n_bins'],
-                               batch_size=2048,
+                               batch_size=namespace.batch_size,
                                val_size=0.25,
                                seed=namespace.seed)
-    datamodule.setup()  # needed to initialze num_reg, num_clf and scalers
+    datamodule.setup()  # needed to initialze scalers
 
     trainer = pl.Trainer(
         gpus=1 if namespace.accelerator == 'gpu' else None,

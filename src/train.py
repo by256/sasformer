@@ -212,7 +212,7 @@ if __name__ == '__main__':
                                val_size=namespace.val_size,
                                subsample=namespace.subsample,
                                seed=namespace.seed)
-    datamodule.setup()  # needed to initialze num_reg, num_clf and scalers
+    datamodule.setup()  # needed to initialze scalers
 
     if namespace.from_yaml is not None:
         params = load_hparams_from_yaml(namespace.from_yaml)
