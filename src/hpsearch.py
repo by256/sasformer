@@ -110,7 +110,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_dir', default='../data/', type=str,
                         help='Directory containing data files.', metavar='data_dir')
-    parser.add_argument('--sub_dir', default='large', type=str,
+    parser.add_argument('--sub_dir', default='sas-55m-20k', type=str,
                         help='Directory containing parquet files within data_dir.', metavar='sub_dir')
     parser.add_argument('--project_name', default='hp-search', type=str,
                         help='Project name for logging.', metavar='project_name')
