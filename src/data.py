@@ -61,12 +61,18 @@ def raw_data_to_df(data_dir: str, step: int = 1):
 
 
 def quotient_transform(x):
+    """I[n+1]/I[n]"""
     return x[:, 1:] / x[:, :-1]
 
 
 def scalar_neutralization(x):
     x_qt = quotient_transform(x)
     return np.cumprod(x_qt, axis=-1)
+
+
+def zero_index_normalization(x):
+    """I(q)/I[0]"""
+    return (x / x[:, 0][:, None])
 
 
 class IqTransformer(BaseEstimator, TransformerMixin):
@@ -94,9 +100,9 @@ class IqTransformer(BaseEstimator, TransformerMixin):
         return x
 
     def input_transform_(self, x):
-        return np.log(quotient_transform(x**2))
+        # return np.log(quotient_transform(x**2))
         # return np.log(scalar_neutralization(x**2))
-        # return (np.log(x**2) / np.max(np.log(x**2), axis=0, keepdims=True))[:, 1:]
+        return zero_index_normalization(np.log(x**2))[:, 1:]
 
 
 class TargetTransformer(BaseEstimator, TransformerMixin):
