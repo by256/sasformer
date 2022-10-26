@@ -100,9 +100,9 @@ class IqTransformer(BaseEstimator, TransformerMixin):
         return x
 
     def input_transform_(self, x):
+        # return zero_index_normalization(np.log(x**2))[:, 1:]
+        return np.log(scalar_neutralization(x**2))
         # return np.log(quotient_transform(x**2))
-        # return np.log(scalar_neutralization(x**2))
-        return zero_index_normalization(np.log(x**2))[:, 1:]
 
 
 class TargetTransformer(BaseEstimator, TransformerMixin):
