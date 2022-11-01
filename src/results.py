@@ -5,7 +5,8 @@ import numpy as np
 import os
 import pandas as pd
 import pytorch_lightning as pl
-from sklearn.metrics import accuracy_score, confusion_matrix, ConfusionMatrixDisplay, mean_absolute_error
+from sklearn.metrics import accuracy_score, confusion_matrix, ConfusionMatrixDisplay, precision_score, recall_score
+from sklearn.metrics import mean_absolute_error, r2_score
 import torch
 
 from model import SASPerceiverIOModel
@@ -31,7 +32,7 @@ if __name__ == '__main__':
                         help='Results directory', metavar='results_dir')
     parser.add_argument('--ckpt_path', default=None, type=str,
                         help='Checkpoint path', metavar='ckpt_path')
-    parser.add_argument('--batch_size', default=1024,
+    parser.add_argument('--batch_size', default=1500,
                         type=int, metavar='batch_size')
     parser.add_argument('--accelerator', default='gpu',
                         type=str, metavar='accelerator')
@@ -102,7 +103,8 @@ if __name__ == '__main__':
     test_df = datamodule.test_dataset.df
 
     # clf
-    inter_class_acc = {'model': [], 'acc': [], 'top3_acc': []}
+    inter_class_acc = {'model': [], 'acc': [],
+                       'top3_acc': [], 'precision': [], 'recall': []}
 
     model_names = test_df['model'].unique()
     for model_name in model_names:
@@ -112,25 +114,42 @@ if __name__ == '__main__':
         acc = np.round(acc, 3)
         top3_acc = top_k_acc(y_true_clf[model_idx], y_pred_clf[model_idx], k=3)
         top3_acc = np.round(top3_acc, 3)
+        precision = precision_score(
+            y_true_clf[model_idx], np.argmax(
+                y_pred_clf[model_idx], axis=1), average='micro')
+        precision = np.round(precision, 3)
+        recall = recall_score(y_true_clf[model_idx], np.argmax(
+            y_pred_clf[model_idx], axis=1), average='micro')
+        recall = np.round(recall, 3)
         inter_class_acc['model'].append(model_name)
         inter_class_acc['acc'].append(acc)
         inter_class_acc['top3_acc'].append(top3_acc)
-        print(f'{model_name.ljust(27)}   Acc: {acc:.5f}   Top 3 Acc: {top3_acc:.5f}')
+        inter_class_acc['precision'].append(precision)
+        inter_class_acc['recall'].append(recall)
+        print(f'{model_name.ljust(27)}   Acc: {acc:.5f}   Top 3 Acc: {top3_acc:.5f}   Precision: {precision:.5f}Recall: {recall:.5f}')
 
     inter_class_acc_path = os.path.join(results_dir, 'interclass_clf.csv')
     pd.DataFrame(inter_class_acc).to_csv(inter_class_acc_path, index=False)
     print('\n')
 
     # reg
-    inter_class_mae = {'model': [], 'param': [],  'mae': [], 'scale': []}
+    inter_class_mae = {'model': [], 'param': [],
+                       'mae': [], 'r2': [], 'scale': []}
 
     reg_target_columns = [x for x in test_df.columns if x.startswith('reg')]
     model_param = [x.split('-')[1:] for x in reg_target_columns]
     model_param = [(x[0].split('=')[-1], x[1].split('=')[-1])
                    for x in model_param]
     for idx, (model_name, param_name) in enumerate(model_param):
-        mae = np.nanmean(np.abs(y_pred_reg[:, idx] - y_true_reg[:, idx]))
+        valid_idx = ~np.isnan(y_true_reg[:, idx])
+        true = y_true_reg[:, idx][valid_idx]
+        pred = y_pred_reg[:, idx][valid_idx]
+
+        mae = mean_absolute_error(true, pred)
         mae = np.round(mae, 3)
+        r2 = r2_score(true, pred)
+        r2 = np.round(r2, 3)
+
         if param_name in scales[model_name]:
             scale = scales[model_name][param_name]
         else:
@@ -138,6 +157,7 @@ if __name__ == '__main__':
         inter_class_mae['model'].append(model_name)
         inter_class_mae['param'].append(param_name)
         inter_class_mae['mae'].append(mae)
+        inter_class_mae['r2'].append(r2)
         inter_class_mae['scale'].append(scale)
         print(
             f'{str(idx).ljust(3)}: {model_name.ljust(27)}  {param_name.ljust(18)}   MAE: {mae:.3f}   Scale: {scale.ljust(10)}')
@@ -152,7 +172,7 @@ if __name__ == '__main__':
     clf_model_names = sorted(
         list(np.unique(datamodule.test_dataset.df['model'])))
     disp = ConfusionMatrixDisplay(C, display_labels=clf_model_names)
-    fig, ax = plt.subplots(figsize=(16, 16))
+    fig, ax = plt.subplots(figsize=(24, 24))
     disp.plot(ax=ax, cmap='Blues')
     disp.im_.colorbar.remove()
     ax.set_xticklabels(clf_model_names, rotation=90)
