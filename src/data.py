@@ -147,12 +147,19 @@ class TargetTransformer(BaseEstimator, TransformerMixin):
 
 
 class SASDataset:
-    def __init__(self, df: pd.DataFrame,
-                 x_scaler: IqTransformer,
-                 y_scaler: TargetTransformer):
+    def __init__(
+        self,
+        df: pd.DataFrame,
+        x_scaler: IqTransformer,
+        y_scaler: TargetTransformer,
+        masked: bool = False,
+        mask_proportion: float = 0.23,
+    ):
         self.df = df.reset_index(drop=True)
         self.x_scaler = x_scaler
         self.y_scaler = y_scaler
+        self.masked = masked
+        self.mask_proportion = mask_proportion
 
         data_columns = [x for x in df.columns if x.startswith('I(q')]
         reg_target_columns = [x for x in df.columns if x.startswith('reg')]
@@ -171,7 +178,18 @@ class SASDataset:
         # I_q = self.I_q_transformed[idx, :, None]
         I_q = self.x_scaler.transform(self.I_q[idx, :][None, :]).T
         reg_targets = self.reg_targets_transformed[idx, :]
+        if self.masked:
+            mask = self.sample_random_mask_()
+            return torch.LongTensor(I_q), self.clf_labels[idx], torch.Tensor(reg_targets), mask
         return torch.LongTensor(I_q), self.clf_labels[idx], torch.Tensor(reg_targets)
+
+    def sample_random_mask_(self):
+        seq_len = self.I_q.shape[1] - 1
+        min_idx = int(seq_len - seq_len*self.mask_proportion)
+        mask_start_idx = np.random.randint(min_idx, seq_len-1)
+        mask = torch.zeros(size=(seq_len, ))
+        mask[mask_start_idx:] = 1
+        return torch.Tensor(mask).bool()
 
 
 class SASDataModule(pl.LightningDataModule):
@@ -181,6 +199,8 @@ class SASDataModule(pl.LightningDataModule):
                  batch_size: int,
                  val_size: float = 0.0,
                  n_bins: int = 256,
+                 masked: bool = False,
+                 mask_proportion: float = 0.23,
                  subsample: int = None,
                  seed: int = None):
         super().__init__()
@@ -189,6 +209,8 @@ class SASDataModule(pl.LightningDataModule):
         self.batch_size = batch_size
         self.val_size = val_size
         self.n_bins = n_bins
+        self.masked = masked
+        self.mask_proportion = mask_proportion
         self.subsample = subsample
         self.seed = seed
         self.num_clf = None
@@ -227,14 +249,14 @@ class SASDataModule(pl.LightningDataModule):
 
         # PyTorch dataset classes
         self.train_dataset = SASDataset(
-            train, input_transformer, target_transformer)
+            train, input_transformer, target_transformer, self.masked, self.mask_proportion)
 
         if self.val_size > 0.0:
             self.val_dataset = SASDataset(
-                val, input_transformer, target_transformer)
+                val, input_transformer, target_transformer, self.masked, self.mask_proportion)
 
         self.test_dataset = SASDataset(
-            test, input_transformer, target_transformer)
+            test, input_transformer, target_transformer, self.masked, self.mask_proportion)
 
     def train_dataloader(self):
         return DataLoader(self.train_dataset, batch_size=self.batch_size)

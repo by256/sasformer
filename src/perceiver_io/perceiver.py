@@ -4,7 +4,7 @@ from typing import Optional
 import torch
 from torch import nn
 
-from perceiver_io.decoders import BasePerceiverDecoder, TaskDecoder
+from perceiver_io.decoders import PerceiverDecoder
 from perceiver_io.encoder import PerceiverEncoder
 from perceiver_io.positional_encoding import PositionalEncoding
 
@@ -43,7 +43,7 @@ class PerceiverIO(nn.Module):
     def __init__(
         self,
         encoder: PerceiverEncoder,
-        decoder: BasePerceiverDecoder
+        decoder: PerceiverDecoder
     ):
         """Constructor.
 
@@ -90,17 +90,17 @@ class SASPerceiverIO(nn.Module):
     def __init__(
         self,
         encoder: PerceiverEncoder,
-        sas_model_decoder: TaskDecoder,
-        sas_param_decoder: TaskDecoder,
+        sas_model_decoder: PerceiverDecoder,
+        sas_param_decoder: PerceiverDecoder,
         n_bins: int = 256,
         seq_len: int = 511
     ):
         """Constructor.
 
         Args:
-            encoder: Instance of Perceiver IO encoder.
-            sas_model_decoder: Instance of TaskDecoder.
-            sas_param_decoder: Instance of TaskDecoder.
+            encoder: Instance of PerceiverEncoder.
+            sas_model_decoder: Instance of PerceiverDecoder.
+            sas_param_decoder: Instance of PerceiverDecoder.
         """
         super().__init__()
         self.encoder = encoder
@@ -112,9 +112,7 @@ class SASPerceiverIO(nn.Module):
     def forward(
         self,
         inputs: torch.Tensor,
-        query: Optional[torch.Tensor] = None,
-        input_mask: Optional[torch.Tensor] = None,
-        query_mask: Optional[torch.Tensor] = None,
+        key_padding_mask: Optional[torch.Tensor] = None
     ):
         """
         Args:
@@ -130,7 +128,7 @@ class SASPerceiverIO(nn.Module):
             Output tensor.
         """
         emb = self.embedding(inputs)
-        latents = self.encoder(emb, kv_mask=input_mask)
+        latents = self.encoder(emb, key_padding_mask)
         clf_outputs = self.sas_model_decoder(latents)
         reg_outputs = self.sas_param_decoder(latents)
         return clf_outputs, reg_outputs

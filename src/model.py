@@ -8,7 +8,7 @@ from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
 from sklearn.preprocessing import KBinsDiscretizer
 
 from data import IqTransformer, TargetTransformer
-from perceiver_io import PerceiverEncoder, PerceiverDecoder, SASPerceiverIO, TaskDecoder
+from perceiver_io import PerceiverEncoder, PerceiverDecoder, SASPerceiverIO
 
 
 def multitask_l1(pred: torch.Tensor, target: torch.Tensor):
@@ -36,16 +36,14 @@ class SASPerceiverIOModel(pl.LightningModule):
                  enc_cross_attn_widening_factor: int = 1,
                  enc_self_attn_widening_factor: int = 3,
                  enc_dropout: float = 0.1,
-                 enc_cross_attention_dropout: float = 0.1,
-                 enc_self_attention_dropout: float = 0.1,
+                 enc_cross_attn_dropout: float = 0.1,
+                 enc_self_attn_dropout: float = 0.1,
                  model_dec_widening_factor: int = 3,
                  model_dec_num_heads: int = 1,
-                 model_dec_qk_out_dim: int = 64,
                  model_dec_dropout: float = 0.1,
                  model_dec_attn_dropout: float = 0.1,
                  param_dec_widening_factor: int = 1,
                  param_dec_num_heads: int = 2,
-                 param_dec_qk_out_dim: int = 256,
                  param_dec_dropout: float = 0.2,
                  param_dec_attn_dropout: float = 0.2,
                  lr: float = 5e-4,
@@ -70,39 +68,42 @@ class SASPerceiverIOModel(pl.LightningModule):
         self.num_classes = num_classes
         self.save_hyperparameters(ignore=['model'])
         # encoder
-        self.encoder = PerceiverEncoder(num_latents=num_latents,
-                                        latent_dim=latent_dim,
-                                        num_blocks=enc_num_blocks,
-                                        num_self_attn_per_block=enc_num_self_attn_per_block,
-                                        num_cross_attn_heads=enc_num_cross_attn_heads,
-                                        num_self_attn_heads=enc_num_self_attn_heads,
-                                        cross_attn_widening_factor=enc_cross_attn_widening_factor,
-                                        self_attn_widening_factor=enc_self_attn_widening_factor,
-                                        dropout=enc_dropout,
-                                        cross_attention_dropout=enc_cross_attention_dropout,
-                                        self_attention_dropout=enc_self_attention_dropout)
+        self.encoder = PerceiverEncoder(
+            num_latents=num_latents,
+            latent_dim=latent_dim,
+            num_blocks=enc_num_blocks,
+            num_self_attn_per_block=enc_num_self_attn_per_block,
+            num_cross_attn_heads=enc_num_cross_attn_heads,
+            num_self_attn_heads=enc_num_self_attn_heads,
+            cross_attn_widening_factor=enc_cross_attn_widening_factor,
+            self_attn_widening_factor=enc_self_attn_widening_factor,
+            dropout=enc_dropout,
+            cross_attn_dropout=enc_cross_attn_dropout,
+            self_attn_dropout=enc_self_attn_dropout)
         # clf decoder
-        self.sas_model_decoder = TaskDecoder(num_outputs=num_classes,
-                                             latent_dim=latent_dim,
-                                             widening_factor=model_dec_widening_factor,
-                                             num_heads=model_dec_num_heads,
-                                             qk_out_dim=model_dec_qk_out_dim,
-                                             dropout=model_dec_dropout,
-                                             attention_dropout=model_dec_attn_dropout)
+        self.sas_model_decoder = PerceiverDecoder(
+            num_outputs=num_classes,
+            num_latents=1,
+            latent_dim=latent_dim,
+            widening_factor=model_dec_widening_factor,
+            num_heads=model_dec_num_heads,
+            dropout=model_dec_dropout,
+            attn_dropout=model_dec_attn_dropout)
         # reg decoder
-        self.sas_param_decoder = TaskDecoder(num_outputs=num_reg_outputs,
-                                             latent_dim=latent_dim,
-                                             widening_factor=param_dec_widening_factor,
-                                             num_heads=param_dec_num_heads,
-                                             qk_out_dim=param_dec_qk_out_dim,
-                                             dropout=param_dec_dropout,
-                                             attention_dropout=param_dec_attn_dropout)
+        self.sas_param_decoder = PerceiverDecoder(
+            num_outputs=num_reg_outputs,
+            num_latents=1,
+            latent_dim=latent_dim,
+            widening_factor=param_dec_widening_factor,
+            num_heads=param_dec_num_heads,
+            dropout=param_dec_dropout,
+            attn_dropout=param_dec_attn_dropout)
 
         self.perceiver = SASPerceiverIO(
             self.encoder, self.sas_model_decoder, self.sas_param_decoder, n_bins, seq_len)
 
-    def forward(self, x):
-        return self.perceiver(x)
+    def forward(self, x, mask=None):
+        return self.perceiver(x, mask)
 
     def training_step(self, batch, batch_idx):
         return self.step_(batch, batch_idx, mode='train')
@@ -117,9 +118,10 @@ class SASPerceiverIOModel(pl.LightningModule):
         return self.step_(batch, batch_idx, mode='predict')
 
     def step_(self, batch, batch_idx, mode):
-        x, y_clf_true, y_reg_true = batch
+        x, y_clf_true, y_reg_true = batch[:3]
+        mask = batch[3] if len(batch) == 4 else None
         # forward
-        y_clf_pred, y_reg_pred = self(x)
+        y_clf_pred, y_reg_pred = self(x, mask)
         # calculate individual losses
         clf_loss = F.cross_entropy(y_clf_pred, y_clf_true)
         if self.reg_obj == 'mse':
@@ -149,8 +151,8 @@ class SASPerceiverIOModel(pl.LightningModule):
 
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(),
-                                     lr=self.hparams.lr,
-                                     weight_decay=self.hparams.weight_decay)
+                                      lr=self.hparams.lr,
+                                      weight_decay=self.hparams.weight_decay)
         lr_scheduler = LinearWarmupCosineAnnealingLR(optimizer,
                                                      warmup_epochs=int(
                                                          0.05*self.trainer.max_epochs),

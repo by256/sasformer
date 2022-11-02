@@ -44,6 +44,8 @@ if __name__ == '__main__':
     root_dir = os.path.dirname(os.path.abspath(__file__))
     data_dir = os.path.join(root_dir, namespace.data_dir)
     results_dir = os.path.join(root_dir, namespace.results_dir)
+    if not os.path.exists(results_dir):
+        os.makedirs(results_dir)
 
     with open(os.path.join(data_dir, 'scales.json'), 'r') as f:
         scales = json.load(f)

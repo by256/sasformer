@@ -77,22 +77,24 @@ def load_hparams_from_namespace(namespace):
                'enc_cross_attn_widening_factor': namespace.enc_cross_attn_widening_factor,
                'enc_self_attn_widening_factor': namespace.enc_self_attn_widening_factor,
                'enc_dropout': namespace.enc_dropout,
-               'enc_cross_attention_dropout': namespace.enc_dropout,
-               'enc_self_attention_dropout': namespace.enc_dropout,
+               'enc_cross_attn_dropout': namespace.enc_dropout,
+               'enc_self_attn_dropout': namespace.enc_dropout,
                'model_dec_widening_factor': namespace.model_dec_widening_factor,
                'model_dec_num_heads': namespace.model_dec_num_heads,
-               'model_dec_qk_out_dim': namespace.model_dec_qk_out_dim,
+               #    'model_dec_qk_out_dim': namespace.model_dec_qk_out_dim,
                'model_dec_dropout': namespace.model_dec_dropout,
                'model_dec_attn_dropout': namespace.model_dec_dropout,
                'param_dec_widening_factor': namespace.param_dec_widening_factor,
                'param_dec_num_heads': namespace.param_dec_num_heads,
-               'param_dec_qk_out_dim': namespace.param_dec_qk_out_dim,
+               #    'param_dec_qk_out_dim': namespace.param_dec_qk_out_dim,
                'param_dec_dropout': namespace.param_dec_dropout,
                'param_dec_attn_dropout': namespace.param_dec_dropout,
                'lr': namespace.lr,
                'batch_size': namespace.batch_size,
                'weight_decay': namespace.weight_decay,
                'n_bins': namespace.n_bins,
+               #    'masked': namespace.masked,
+               #    'mask_proportion': namespace.mask_proportion,
                'clf_weight': namespace.clf_weight,
                'reg_weight': namespace.reg_weight,
                'reg_obj': namespace.reg_obj}
@@ -137,19 +139,15 @@ if __name__ == '__main__':
     # model (clf) decoder args
     parser.add_argument('--model_dec_widening_factor', default=1,
                         type=int, metavar='model_dec_widening_factor')
-    parser.add_argument('--model_dec_num_heads', default=2,
+    parser.add_argument('--model_dec_num_heads', default=5,
                         type=int, metavar='model_decoder_num_heads')
-    parser.add_argument('--model_dec_qk_out_dim', default=256,
-                        type=int, metavar='model_dec_qk_out_dim')
     parser.add_argument('--model_dec_dropout', default=0.0,
                         type=float, metavar='model_dec_dropout')
     # param (reg) decoder args
     parser.add_argument('--param_dec_widening_factor', default=1,
                         type=int, metavar='param_dec_widening_factor')
-    parser.add_argument('--param_dec_num_heads', default=2,
+    parser.add_argument('--param_dec_num_heads', default=3,
                         type=int, metavar='param_decoder_num_heads')
-    parser.add_argument('--param_dec_qk_out_dim', default=256,
-                        type=int, metavar='param_dec_qk_out_dim')
     parser.add_argument('--param_dec_dropout', default=0.0,
                         type=float, metavar='param_dec_dropout')
     # datamodule args
@@ -158,6 +156,10 @@ if __name__ == '__main__':
     # lightning model args
     parser.add_argument('--n_bins', default=256,
                         type=int, help='n bins for input discretization.', metavar='n_bins')
+    parser.add_argument('--masked', default=1,
+                        type=int, help='option to randomly mask I(q) beyond certain q index.', metavar='masked')
+    parser.add_argument('--mask_proportion', default=0.23,
+                        type=int, help='proportion of I(q) masked.', metavar='mask_proportion')
     parser.add_argument('--clf_weight', default=1.0,
                         type=float, metavar='clf_weight')
     parser.add_argument('--reg_weight', default=1.0,
@@ -209,6 +211,8 @@ if __name__ == '__main__':
                                sub_dir=namespace.sub_dir,
                                batch_size=namespace.batch_size,
                                n_bins=namespace.n_bins,
+                               masked=namespace.masked,
+                               mask_proportion=namespace.mask_proportion,
                                val_size=namespace.val_size,
                                subsample=namespace.subsample,
                                seed=namespace.seed)
