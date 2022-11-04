@@ -43,7 +43,6 @@ class SelfAttention(nn.Module):
             dropout=attn_dropout,
             batch_first=True
         )
-        self.dropout = nn.Dropout(dropout)
         self.mlp = MLP(embed_dim, widening_factor, dropout)
 
     def forward(
@@ -84,7 +83,6 @@ class CrossAttention(nn.Module):
             vdim=kv_dim,
             batch_first=True
         )
-        self.dropout = nn.Dropout(dropout)
         self.mlp = MLP(q_dim, widening_factor, dropout)
 
     def forward(
