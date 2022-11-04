@@ -26,6 +26,7 @@ class MLP(nn.Module):
 
 
 class SelfAttention(nn.Module):
+    """Perceiver IO self-attention module."""
     def __init__(
         self,
         embed_dim: int,
@@ -60,6 +61,7 @@ class SelfAttention(nn.Module):
 
 
 class CrossAttention(nn.Module):
+    """Perceiver IO cross-attention module."""
     def __init__(
         self,
         q_dim: int,
