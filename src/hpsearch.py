@@ -16,47 +16,48 @@ from model import SASPerceiverIOModel
 
 
 def objective(trial, namespace, root_dir, data_dir):
-    enc_dropout = trial.suggest_float(
-        'enc_dropout', 0.0, 0.5, step=0.05)
-    model_dec_dropout = trial.suggest_float(
-        'model_dec_dropout', 0.0, 0.5, step=0.05)
-    param_dec_dropout = trial.suggest_float(
-        'param_dec_dropout', 0.0, 0.5, step=0.05)
+    enc_dropout = trial.suggest_float('enc_dropout', 0.0, 0.5, step=0.05)
+    enc_attn_dropout = trial.suggest_float('enc_attn_dropout', 0.0, 0.5, step=0.05)
+    model_dec_dropout = trial.suggest_float('model_dec_dropout', 0.0, 0.5, step=0.05)
+    model_dec_attn_dropout = trial.suggest_float('model_dec_attn_dropout', 0.0, 0.5, step=0.05)
+    param_dec_dropout = trial.suggest_float('param_dec_dropout', 0.0, 0.5, step=0.05)
+    param_dec_attn_dropout = trial.suggest_float('param_dec_attn_dropout', 0.0, 0.5, step=0.05)
     params_i = {
         'n_bins': 256,  # trial.suggest_categorical('n_bins', [128, 256, 512]),
         'num_latents': trial.suggest_categorical('num_latents', [32, 48, 64, 96, 128]),
-        'latent_dim': trial.suggest_categorical('latent_dim', [256, 512, 1024]),
+        'latent_dim': trial.suggest_categorical('latent_dim', [128, 256, 512, 1024]),
         # encoder args
         'enc_num_blocks': 1,  # trial.suggest_int('enc_num_blocks', 2, 12),
-        'enc_num_self_attn_per_block': trial.suggest_int('enc_num_self_attn_per_block', 4, 16),
+        'enc_num_self_attn_per_block': trial.suggest_int('enc_num_self_attn_per_block', 3, 8),
         'enc_num_cross_attn_heads': trial.suggest_categorical('enc_num_cross_attn_heads', [4, 8]),
         'enc_num_self_attn_heads': trial.suggest_categorical('enc_num_self_attn_heads', [4, 8]),
         'enc_cross_attn_widening_factor': trial.suggest_int('enc_cross_attn_widening_factor', 1, 2),
         'enc_self_attn_widening_factor': trial.suggest_int('enc_self_attn_widening_factor', 1, 2),
         'enc_dropout': enc_dropout,
-        'enc_cross_attention_dropout': enc_dropout,
-        'enc_self_attention_dropout': enc_dropout,
+        'enc_cross_attn_dropout': enc_attn_dropout,
+        'enc_self_attn_dropout': enc_attn_dropout,
         # model decoder args
         # 'model_dec_widening_factor': trial.suggest_int('model_dec_widening_factor', 1, 2),
-        'model_dec_num_heads': trial.suggest_categorical('model_dec_num_heads', [2, 4, 8]),
-        'model_dec_qk_out_dim': trial.suggest_categorical('model_dec_qk_out_dim', [128, 256]),
+        'model_dec_num_heads': 5, 
         'model_dec_dropout': model_dec_dropout,
-        'model_dec_attn_dropout': model_dec_dropout,
+        'model_dec_attn_dropout': model_dec_attn_dropout,
         # param decoder args
         # 'param_dec_widening_factor': trial.suggest_int('param_dec_widening_factor', 1, 2),
-        'param_dec_num_heads': trial.suggest_categorical('param_dec_num_heads', [2, 4, 8]),
-        'param_dec_qk_out_dim': trial.suggest_categorical('param_dec_qk_out_dim', [128, 256]),
+        'param_dec_num_heads': 3, 
         'param_dec_dropout': param_dec_dropout,
-        'param_dec_attn_dropout': param_dec_dropout,
+        'param_dec_attn_dropout': param_dec_attn_dropout,
         # loss args
         'clf_weight': 1.0,
         'reg_weight': trial.suggest_categorical('reg_weight', np.logspace(-2, 2, 14)),
         'reg_obj': trial.suggest_categorical('reg_obj', ['mae', 'mse']),
+        # optimizer args
+        'weight_decay': trial.suggest_categorical('weight_decay', np.logspace(-7, -3, 15)),
     }
 
     datamodule = SASDataModule(data_dir=data_dir,
                                sub_dir=namespace.sub_dir,
                                n_bins=params_i['n_bins'],
+                               masked=namespace.masked,
                                batch_size=1,  # placeholder
                                val_size=namespace.val_size,
                                subsample=namespace.subsample,
@@ -79,7 +80,7 @@ def objective(trial, namespace, root_dir, data_dir):
     logger = WandbLogger(project=namespace.project_name,
                          save_dir=os.path.join(root_dir, namespace.log_dir))
 
-    early_stopping = EarlyStopping(monitor='val/es_metric', patience=15)
+    early_stopping = EarlyStopping(monitor='val/es_metric', patience=50)
     trainer = pl.Trainer(gpus=namespace.gpus,
                          max_epochs=namespace.max_epochs,
                          gradient_clip_val=namespace.gradient_clip_val,
@@ -124,6 +125,8 @@ if __name__ == '__main__':
                         type=int, metavar='max_epochs')
     parser.add_argument('--gradient_clip_val', default=1.0,
                         type=float, metavar='gradient_clip_val')
+    parser.add_argument('--masked', default=1,
+                        type=int, help='option to randomly mask I(q) beyond certain q index.', metavar='masked')
     parser.add_argument('--gpus', default=1, type=int, metavar='gpus')
     parser.add_argument('--accumulate_grad_batches', default=1,
                         type=int, metavar='accumulate_grad_batches')
