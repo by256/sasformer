@@ -101,24 +101,6 @@ def load_hparams_from_namespace(namespace):
     return hparams
 
 
-def set_environment_variables_for_mpi(num_nodes, gpus_per_node, master_port=54965):
-     if num_nodes > 1:
-         os.environ["MASTER_ADDR"], os.environ["MASTER_PORT"] = os.environ["AZ_BATCH_MASTER_NODE"].split(":")
-     else:
-         os.environ["MASTER_ADDR"] = os.environ["AZ_BATCHAI_MPI_MASTER_NODE"]
-         os.environ["MASTER_PORT"] = str(master_port)
-
-     try:
-         os.environ["NODE_RANK"] = str(int(os.environ.get("OMPI_COMM_WORLD_RANK")) // gpus_per_node)
-         # additional variables
-         os.environ["MASTER_ADDRESS"] = os.environ["MASTER_ADDR"]
-         os.environ["LOCAL_RANK"] = os.environ["OMPI_COMM_WORLD_LOCAL_RANK"]
-         os.environ["WORLD_SIZE"] = os.environ["OMPI_COMM_WORLD_SIZE"]
-     except:
-         # fails when used with pytorch configuration instead of mpi
-         pass
-
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_dir', default='../data/', type=str,
@@ -223,9 +205,6 @@ if __name__ == '__main__':
     parser.add_argument('--seed', default=None, type=int,
                         help='Random seed.', metavar='seed')
     namespace = parser.parse_args()
-
-    if namespace.num_nodes > 1:
-        set_environment_variables_for_mpi(namespace.num_nodes, namespace.gpus)
 
     if namespace.seed is not None:
         pl.seed_everything(namespace.seed, workers=True)
