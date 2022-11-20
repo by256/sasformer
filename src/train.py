@@ -269,8 +269,8 @@ if __name__ == '__main__':
 
     trainer = pl.Trainer(
         accelerator=namespace.accelerator,
-        # devices=namespace.devices,
-        # num_nodes=namespace.num_nodes,
+        devices=namespace.devices,
+        num_nodes=namespace.num_nodes,
         max_epochs=namespace.max_epochs,
         gradient_clip_val=namespace.gradient_clip_val,
         logger=logger,
