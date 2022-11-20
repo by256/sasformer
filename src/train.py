@@ -1,5 +1,6 @@
 import argparse
 import gc
+from mpi4py import MPI
 import numpy as np
 import os
 import pandas as pd
@@ -187,7 +188,9 @@ if __name__ == '__main__':
                         type=float, metavar='gradient_clip_val')
     parser.add_argument('--ckpt_path', default=None, type=str,
                         help='Checkpoint path to resume training', metavar='ckpt_path')
-    parser.add_argument('--gpus', default=1, type=int, metavar='gpus')
+    # parser.add_argument('--gpus', default=1, type=int, metavar='gpus')
+    parser.add_argument('--accelerator', default='gpu', type=str, metavar='accelerator')
+    parser.add_argument('--devices', default=1, type=int, metavar='devices')
     parser.add_argument('--accumulate_grad_batches', default=None,
                         type=int, metavar='accumulate_grad_batches')
     parser.add_argument('--overfit_batches', default=0,
@@ -205,6 +208,9 @@ if __name__ == '__main__':
     parser.add_argument('--seed', default=None, type=int,
                         help='Random seed.', metavar='seed')
     namespace = parser.parse_args()
+
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
 
     if namespace.seed is not None:
         pl.seed_everything(namespace.seed, workers=True)
@@ -240,32 +246,31 @@ if __name__ == '__main__':
 
     params['input_transformer'] = datamodule.input_transformer
     params['target_transformer'] = datamodule.target_transformer
-    params['lr'] = params['lr'] * namespace.gpus * namespace.num_nodes
+    params['lr'] = params['lr'] * namespace.devices * namespace.num_nodes
 
     # initialize model and trainer
-    if namespace.disable_logger:
-        logger = None
-    else:
+    if not namespace.disable_logger and rank == 0:
         logger = WandbLogger(project=namespace.project_name,
                              save_dir=os.path.join(
                                  root_dir, namespace.log_dir),
                              log_model=False)
+    else:
+        logger = None
 
     model = SASPerceiverIOModel(datamodule.num_clf,
                                 datamodule.num_reg,
                                 **params)
 
-    strategy = DDPStrategy(
-        find_unused_parameters=False,
-        static_graph=True,
-    ) if namespace.strategy == 'ddp' else namespace.strategy
+    strategy = namespace.strategy
     ckpt_callback = ModelCheckpoint(
         monitor='val/total_loss', save_top_k=1, save_last=True)
     profiler = SimpleProfiler(filename='profile') if bool(
         namespace.profile) else None
 
     trainer = pl.Trainer(
-        gpus=namespace.gpus,
+        accelerator=namespace.accelerator,
+        # devices=namespace.devices,
+        # num_nodes=namespace.num_nodes,
         max_epochs=namespace.max_epochs,
         gradient_clip_val=namespace.gradient_clip_val,
         logger=logger,
@@ -275,7 +280,6 @@ if __name__ == '__main__':
         overfit_batches=namespace.overfit_batches,
         deterministic=bool(namespace.deterministic),
         strategy=strategy,
-        num_nodes=namespace.num_nodes,
         detect_anomaly=bool(namespace.detect_anomaly),
         profiler=profiler
     )
