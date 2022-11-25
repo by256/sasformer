@@ -249,7 +249,7 @@ if __name__ == '__main__':
     params['lr'] = params['lr'] * namespace.devices * namespace.num_nodes
 
     # initialize model and trainer
-    if not namespace.disable_logger and rank == 0:
+    if not namespace.disable_logger:
         logger = WandbLogger(project=namespace.project_name,
                              save_dir=os.path.join(
                                  root_dir, namespace.log_dir),
