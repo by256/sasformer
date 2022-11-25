@@ -29,7 +29,7 @@ class SASPerceiverIOModel(pl.LightningModule):
                  seq_len=511,
                  latent_dim: int = 256,
                  num_latents: int = 64,
-                 enc_num_blocks: int = 4,
+                 enc_num_blocks: int = 1,
                  enc_num_self_attn_per_block: int = 6,
                  enc_num_cross_attn_heads: int = 2,
                  enc_num_self_attn_heads: int = 4,
@@ -39,11 +39,11 @@ class SASPerceiverIOModel(pl.LightningModule):
                  enc_cross_attn_dropout: float = 0.1,
                  enc_self_attn_dropout: float = 0.1,
                  model_dec_widening_factor: int = 3,
-                 model_dec_num_heads: int = 1,
+                 model_dec_num_heads: int = 5,
                  model_dec_dropout: float = 0.1,
                  model_dec_attn_dropout: float = 0.1,
                  param_dec_widening_factor: int = 1,
-                 param_dec_num_heads: int = 2,
+                 param_dec_num_heads: int = 3,
                  param_dec_dropout: float = 0.2,
                  param_dec_attn_dropout: float = 0.2,
                  lr: float = 5e-4,
@@ -157,24 +157,24 @@ class SASPerceiverIOModel(pl.LightningModule):
                                                      warmup_epochs=int(
                                                          0.05*self.trainer.max_epochs),
                                                      max_epochs=self.trainer.max_epochs,
-                                                     eta_min=self.hparams.lr/10.0)
+                                                     eta_min=self.hparams.lr/100.0)
         return {'optimizer': optimizer,
                 'lr_scheduler': {'scheduler': lr_scheduler}}
 
     def log_losses_and_metrics(self, clf_loss, reg_loss, acc, mae, lr=None, mode='train'):
         total_loss = self.reg_weight*reg_loss+self.clf_weight*clf_loss
         self.log(f'{mode}/total_loss', total_loss,
-                 on_epoch=True, on_step=False, sync_dist=True)
+                 on_epoch=True, on_step=False, rank_zero_only=True)
         self.log(f'{mode}/clf_loss', self.clf_weight*clf_loss,
-                 on_epoch=True, on_step=False, sync_dist=True)
+                 on_epoch=True, on_step=False, rank_zero_only=True)
         self.log(f'{mode}/reg_loss', self.reg_weight*reg_loss,
-                 on_epoch=True, on_step=False, sync_dist=True)
+                 on_epoch=True, on_step=False, rank_zero_only=True)
         self.log(f'{mode}/accuracy', acc,
-                 on_epoch=True, on_step=False, prog_bar=True)  # torchmetrics doesn't need sync_dist
+                 on_epoch=True, on_step=False, rank_zero_only=True, prog_bar=True)
         self.log(f'{mode}/mae', mae,
-                 on_epoch=True, on_step=False, prog_bar=True, sync_dist=True)
+                 on_epoch=True, on_step=False, prog_bar=True, rank_zero_only=True)
         self.log(f'{mode}/es_metric', (mae/700)+(1-acc),
-                 on_epoch=True, on_step=False, sync_dist=True)
+                 on_epoch=True, on_step=False, rank_zero_only=True)
         if lr is not None and mode == 'train':
             self.log('trainer/lr', lr, on_epoch=True,
                      on_step=False, rank_zero_only=True)
