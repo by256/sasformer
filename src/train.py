@@ -267,8 +267,8 @@ if __name__ == '__main__':
         namespace.profile) else None
 
     strategy = namespace.strategy
-    num_nodes = None if strategy == 'horovod' else namespace.num_nodes
-    devices = None if strategy == 'horovod' else namespace.devices
+    num_nodes = namespace.num_nodes
+    devices = namespace.devices
 
     trainer = pl.Trainer(
         accelerator=namespace.accelerator,
