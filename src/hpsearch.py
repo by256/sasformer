@@ -1,14 +1,14 @@
-import os
-import wandb
-import joblib
-import optuna
 import argparse
+import joblib
 import numpy as np
-
-import torch
+import optuna
+import os
+from pprint import pprint
 import pytorch_lightning as pl
 from pytorch_lightning.loggers.wandb import WandbLogger
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
+import torch
+import wandb
 
 from data import SASDataModule
 from train import clear_cache, find_batch_size_one_gpu
@@ -55,6 +55,7 @@ def objective(trial, namespace, root_dir, data_dir):
         'lr': namespace.lr,
         'weight_decay': trial.suggest_categorical('weight_decay', np.logspace(-7, -3, 15)),
     }
+    pprint(params_i)
 
     datamodule = SASDataModule(data_dir=data_dir,
                                sub_dir=namespace.sub_dir,
