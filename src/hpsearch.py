@@ -25,24 +25,24 @@ def objective(trial, namespace, root_dir, data_dir):
     params_i = {
         'n_bins': 256,  # trial.suggest_categorical('n_bins', [128, 256, 512]),
         'num_latents': trial.suggest_categorical('num_latents', [48, 64, 96, 128]),
-        'latent_dim': trial.suggest_categorical('latent_dim', [512, 1024]),
+        'latent_dim': trial.suggest_categorical('latent_dim', [256, 512]),
         # encoder args
         'enc_num_blocks': 1,  # trial.suggest_int('enc_num_blocks', 2, 12),
         'enc_num_self_attn_per_block': trial.suggest_int('enc_num_self_attn_per_block', 3, 8),
         'enc_num_cross_attn_heads': trial.suggest_categorical('enc_num_cross_attn_heads', [4, 8]),
         'enc_num_self_attn_heads': trial.suggest_categorical('enc_num_self_attn_heads', [4, 8]),
-        'enc_cross_attn_widening_factor': trial.suggest_int('enc_cross_attn_widening_factor', 1, 2),
-        'enc_self_attn_widening_factor': trial.suggest_int('enc_self_attn_widening_factor', 1, 2),
+        'enc_cross_attn_widening_factor': 2,  # trial.suggest_int('enc_cross_attn_widening_factor', 1, 2),
+        'enc_self_attn_widening_factor': 2,  # trial.suggest_int('enc_self_attn_widening_factor', 1, 2),
         'enc_dropout': enc_dropout,
         'enc_cross_attn_dropout': enc_attn_dropout,
         'enc_self_attn_dropout': enc_attn_dropout,
         # model decoder args
-        'model_dec_widening_factor': trial.suggest_int('model_dec_widening_factor', 1, 3),
+        'model_dec_widening_factor': 2,  # trial.suggest_int('model_dec_widening_factor', 1, 3),
         'model_dec_num_heads': 5, 
         'model_dec_dropout': model_dec_dropout,
         'model_dec_attn_dropout': model_dec_attn_dropout,
         # param decoder args
-        'param_dec_widening_factor': trial.suggest_int('param_dec_widening_factor', 1, 3),
+        'param_dec_widening_factor': 2,  # trial.suggest_int('param_dec_widening_factor', 1, 3),
         'param_dec_num_heads': 3, 
         'param_dec_dropout': param_dec_dropout,
         'param_dec_attn_dropout': param_dec_attn_dropout,
@@ -56,6 +56,7 @@ def objective(trial, namespace, root_dir, data_dir):
         'weight_decay': trial.suggest_categorical('weight_decay', np.logspace(-7, -3, 15)),
     }
     pprint(params_i)
+
 
     datamodule = SASDataModule(data_dir=data_dir,
                                sub_dir=namespace.sub_dir,
