@@ -75,7 +75,8 @@ def objective(trial, namespace, root_dir, data_dir):
                                 **params_i)
 
     logger = WandbLogger(project=namespace.project_name,
-                         save_dir=os.path.join(root_dir, namespace.log_dir))
+                         save_dir=os.path.join(root_dir, namespace.log_dir), 
+                         group=f'exp-{wandb.util.generate_id()}')
     # logger = None
     early_stopping = EarlyStopping(monitor='val/es_metric', patience=50)
 
