@@ -62,6 +62,7 @@ def objective(trial, namespace, root_dir, data_dir):
                                sub_dir=namespace.sub_dir,
                                n_bins=params_i['n_bins'],
                                masked=namespace.masked,
+                               mask_proportion=namespace.mask_proportion,
                                batch_size=params_i['batch_size'],  # placeholder
                                val_size=namespace.val_size,
                                subsample=namespace.subsample,
@@ -76,13 +77,14 @@ def objective(trial, namespace, root_dir, data_dir):
 
     logger = WandbLogger(project=namespace.project_name,
                          save_dir=os.path.join(root_dir, namespace.log_dir), 
+                         log_model=False, 
                          group=f'exp-{wandb.util.generate_id()}')
     # logger = None
     early_stopping = EarlyStopping(monitor='val/es_metric', patience=50)
 
     strategy = namespace.strategy
-    num_nodes = None if strategy == 'horovod' else namespace.num_nodes
-    devices = None if strategy == 'horovod' else namespace.devices
+    num_nodes = namespace.num_nodes
+    devices = namespace.devices
 
     trainer = pl.Trainer(
         accelerator=namespace.accelerator,
@@ -132,6 +134,8 @@ if __name__ == '__main__':
                         type=float, metavar='gradient_clip_val')
     parser.add_argument('--masked', default=1,
                         type=int, help='option to randomly mask I(q) beyond certain q index.', metavar='masked')
+    parser.add_argument('--mask_proportion', default=0.23,
+                        type=int, help='proportion of I(q) masked.', metavar='mask_proportion')
     parser.add_argument('--accelerator', default='gpu', type=str, metavar='accelerator')
     parser.add_argument('--devices', default=1, type=int, metavar='devices')
     parser.add_argument('--batch_size', default=64, type=int, metavar='batch_size')
