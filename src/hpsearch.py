@@ -24,8 +24,8 @@ def objective(trial, namespace, root_dir, data_dir):
     param_dec_attn_dropout = trial.suggest_float('param_dec_attn_dropout', 0.0, 0.5, step=0.05)
     params_i = {
         'n_bins': 256,  # trial.suggest_categorical('n_bins', [128, 256, 512]),
-        'num_latents': trial.suggest_categorical('num_latents', [32, 48, 64, 96, 128]),
-        'latent_dim': trial.suggest_categorical('latent_dim', [128, 256, 512, 1024]),
+        'num_latents': trial.suggest_categorical('num_latents', [48, 64, 96, 128]),
+        'latent_dim': trial.suggest_categorical('latent_dim', [512, 1024]),
         # encoder args
         'enc_num_blocks': 1,  # trial.suggest_int('enc_num_blocks', 2, 12),
         'enc_num_self_attn_per_block': trial.suggest_int('enc_num_self_attn_per_block', 3, 8),
@@ -37,12 +37,12 @@ def objective(trial, namespace, root_dir, data_dir):
         'enc_cross_attn_dropout': enc_attn_dropout,
         'enc_self_attn_dropout': enc_attn_dropout,
         # model decoder args
-        # 'model_dec_widening_factor': trial.suggest_int('model_dec_widening_factor', 1, 2),
+        'model_dec_widening_factor': trial.suggest_int('model_dec_widening_factor', 1, 3),
         'model_dec_num_heads': 5, 
         'model_dec_dropout': model_dec_dropout,
         'model_dec_attn_dropout': model_dec_attn_dropout,
         # param decoder args
-        # 'param_dec_widening_factor': trial.suggest_int('param_dec_widening_factor', 1, 2),
+        'param_dec_widening_factor': trial.suggest_int('param_dec_widening_factor', 1, 3),
         'param_dec_num_heads': 3, 
         'param_dec_dropout': param_dec_dropout,
         'param_dec_attn_dropout': param_dec_attn_dropout,
@@ -51,6 +51,8 @@ def objective(trial, namespace, root_dir, data_dir):
         'reg_weight': trial.suggest_categorical('reg_weight', np.logspace(-2, 2, 14)),
         'reg_obj': trial.suggest_categorical('reg_obj', ['mae', 'mse']),
         # optimizer args
+        'batch_size': namespace.batch_size,
+        'lr': namespace.lr,
         'weight_decay': trial.suggest_categorical('weight_decay', np.logspace(-7, -3, 15)),
     }
 
@@ -58,18 +60,11 @@ def objective(trial, namespace, root_dir, data_dir):
                                sub_dir=namespace.sub_dir,
                                n_bins=params_i['n_bins'],
                                masked=namespace.masked,
-                               batch_size=1,  # placeholder
+                               batch_size=params_i['batch_size'],  # placeholder
                                val_size=namespace.val_size,
                                subsample=namespace.subsample,
                                seed=namespace.seed)
     datamodule.setup()  # needed to initialze num_reg, num_clf and scalers
-
-    # find largest batch_size that fits in memory
-    batch_size = find_batch_size_one_gpu(params_i, datamodule)
-    batch_size = int(batch_size * 0.9)  # buffer
-    params_i['batch_size'] = batch_size
-    datamodule.batch_size = batch_size
-    params_i['lr'] = 7.8125e-7 * batch_size / namespace.gpus  # sorcery
 
     model = SASPerceiverIOModel(datamodule.num_clf,
                                 datamodule.num_reg,
@@ -79,20 +74,27 @@ def objective(trial, namespace, root_dir, data_dir):
 
     logger = WandbLogger(project=namespace.project_name,
                          save_dir=os.path.join(root_dir, namespace.log_dir))
-
+    # logger = None
     early_stopping = EarlyStopping(monitor='val/es_metric', patience=50)
-    trainer = pl.Trainer(gpus=namespace.gpus,
-                         max_epochs=namespace.max_epochs,
-                         gradient_clip_val=namespace.gradient_clip_val,
-                         logger=logger,
-                         precision=32,
-                         callbacks=[early_stopping],
-                         overfit_batches=namespace.overfit_batches,
-                         accumulate_grad_batches=namespace.accumulate_grad_batches,
-                         strategy=namespace.strategy,
-                         num_nodes=namespace.num_nodes,
-                         detect_anomaly=False,
-                         )
+
+    strategy = namespace.strategy
+    num_nodes = None if strategy == 'horovod' else namespace.num_nodes
+    devices = None if strategy == 'horovod' else namespace.devices
+
+    trainer = pl.Trainer(
+        accelerator=namespace.accelerator,
+        devices=devices,
+        num_nodes=num_nodes,
+        strategy=strategy,
+        max_epochs=namespace.max_epochs,
+        gradient_clip_val=namespace.gradient_clip_val,
+        logger=logger,
+        precision=32,
+        callbacks=[early_stopping],
+        overfit_batches=namespace.overfit_batches,
+        accumulate_grad_batches=namespace.accumulate_grad_batches,
+        detect_anomaly=False,
+    )
 
     trainer.fit(model,
                 datamodule=datamodule)
@@ -121,13 +123,16 @@ if __name__ == '__main__':
                         help='Logging directory for Tensorboard/WandB', metavar='log_dir')
     parser.add_argument('--subsample', default=None,
                         type=int, help='Subsample data (for debugging)', metavar='subsample')
-    parser.add_argument('--max_epochs', default=200,
+    parser.add_argument('--max_epochs', default=100,
                         type=int, metavar='max_epochs')
     parser.add_argument('--gradient_clip_val', default=1.0,
                         type=float, metavar='gradient_clip_val')
     parser.add_argument('--masked', default=1,
                         type=int, help='option to randomly mask I(q) beyond certain q index.', metavar='masked')
-    parser.add_argument('--gpus', default=1, type=int, metavar='gpus')
+    parser.add_argument('--accelerator', default='gpu', type=str, metavar='accelerator')
+    parser.add_argument('--devices', default=1, type=int, metavar='devices')
+    parser.add_argument('--batch_size', default=64, type=int, metavar='batch_size')
+    parser.add_argument('--lr', default=1e-3, type=float, metavar='lr')
     parser.add_argument('--accumulate_grad_batches', default=1,
                         type=int, metavar='accumulate_grad_batches')
     parser.add_argument('--overfit_batches', default=0,
