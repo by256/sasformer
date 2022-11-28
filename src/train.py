@@ -261,16 +261,20 @@ if __name__ == '__main__':
                                 datamodule.num_reg,
                                 **params)
 
-    strategy = namespace.strategy
     ckpt_callback = ModelCheckpoint(
         monitor='val/total_loss', save_top_k=1, save_last=True)
     profiler = SimpleProfiler(filename='profile') if bool(
         namespace.profile) else None
 
+    strategy = namespace.strategy
+    num_nodes = None if strategy == 'horovod' else namespace.num_nodes
+    devices = None if strategy == 'horovod' else namespace.devices
+
     trainer = pl.Trainer(
         accelerator=namespace.accelerator,
-        devices=namespace.devices,
-        num_nodes=namespace.num_nodes,
+        devices=devices,
+        num_nodes=num_nodes,
+        strategy=strategy,
         max_epochs=namespace.max_epochs,
         gradient_clip_val=namespace.gradient_clip_val,
         logger=logger,
@@ -279,7 +283,6 @@ if __name__ == '__main__':
         accumulate_grad_batches=namespace.accumulate_grad_batches,
         overfit_batches=namespace.overfit_batches,
         deterministic=bool(namespace.deterministic),
-        strategy=strategy,
         detect_anomaly=bool(namespace.detect_anomaly),
         profiler=profiler
     )
