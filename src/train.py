@@ -1,6 +1,5 @@
 import argparse
 import gc
-from mpi4py import MPI
 import numpy as np
 import os
 import pandas as pd
@@ -123,9 +122,9 @@ if __name__ == '__main__':
                         type=int, metavar='num_latents')
     parser.add_argument('--latent_dim', default=256,
                         type=int, metavar='latent_dim')
-    parser.add_argument('--enc_num_blocks', default=3,
+    parser.add_argument('--enc_num_blocks', default=1,
                         type=int, metavar='enc_num_blocks')
-    parser.add_argument('--enc_num_self_attn_per_block', default=2,
+    parser.add_argument('--enc_num_self_attn_per_block', default=3,
                         type=int, metavar='encoder_num_self_attn_per_block')
     parser.add_argument('--enc_num_self_attn_heads', default=2,
                         type=int, metavar='encoder_num_self_attn_heads')
@@ -182,7 +181,7 @@ if __name__ == '__main__':
     parser.add_argument('--lr', default=1.6e-3, type=float, metavar='lr')
     parser.add_argument('--weight_decay', default=1e-7,
                         type=float, metavar='weight_decay')
-    parser.add_argument('--max_epochs', default=200,
+    parser.add_argument('--max_epochs', default=100,
                         type=int, metavar='max_epochs')
     parser.add_argument('--gradient_clip_val', default=1.0,
                         type=float, metavar='gradient_clip_val')
@@ -209,8 +208,6 @@ if __name__ == '__main__':
                         help='Random seed.', metavar='seed')
     namespace = parser.parse_args()
 
-    comm = MPI.COMM_WORLD
-    rank = comm.Get_rank()
 
     if namespace.seed is not None:
         pl.seed_everything(namespace.seed, workers=True)
