@@ -3,7 +3,7 @@ lightning-bolts
 numpy
 pandas
 pytorch-lightning==1.7.6
-scikit-learn==1.0.1
+scikit-learn==1.1.1
 torch==1.10.0
 torchmetrics
 wandb
