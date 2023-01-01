@@ -6,11 +6,9 @@
 
 This repository contains the source code for the Sasformer model from Multi-task Scattering-Model Classification and Parameter Regression of Nanostructures from Small-Angle Scattering Data.
 
-
-
 ## SAS-55M-20k Dataset
 
-Details on downloading the SAS-55M-20k dataset will be found here following publication of the manuscript of this work.
+Details on how to download the SAS-55M-20k dataset will be found here following publication of the manuscript of this work.
 
 <!-- ## Notes
 
@@ -21,7 +19,7 @@ The results in the manuscript were obtained using a previous [commit](https://gi
 If you use the methods outlined in this repository, please cite the following work:
 
 ```
-@article{Yildirim2022,
+@article{Sasformer2023,
 
 }
 ```
