@@ -12,9 +12,9 @@ This repository contains the source code for the Sasformer model from Multi-task
 
 Details on downloading the SAS-55M-20k dataset will be found here following publication of the manuscript of this work.
 
-## Notes
+<!-- ## Notes
 
-The results in the manuscript were obtained using a previous [commit](https://github.com/by256/sasformer/tree/792d5b0383804e9786446c904c4240500fa822f7). We recommend that you use that version if you would like to reproduce the results in the manuscript exactly.
+The results in the manuscript were obtained using a previous [commit](https://github.com/by256/sasformer/tree/792d5b0383804e9786446c904c4240500fa822f7). We recommend that you use that version if you would like to reproduce the results in the manuscript exactly. -->
 
 ## Citing
 
