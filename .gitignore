@@ -134,3 +134,7 @@ logs/
 lightning_logs/
 src/baselines/
 src/results/
+*.ckpt
+*.ipynb
+*.zip
+results/
