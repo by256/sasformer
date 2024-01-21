@@ -1,7 +1,9 @@
 import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F  # noqa: N812
-from perceiver_io import PerceiverDecoder, PerceiverEncoder, SASPerceiverIO
+from perceiver_io.encoder import PerceiverEncoder
+from perceiver_io.decoders import PerceiverDecoder
+from perceiver_io.perceiver import SASPerceiverIO
 from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
 from torchmetrics.functional import accuracy
 
