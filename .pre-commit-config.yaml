@@ -1,0 +1,80 @@
+default_language_version:
+  python: python3
+files: ^sasformer
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: debug-statements
+      - id: check-ast # Simply check whether the files parse as valid python
+      - id: check-case-conflict # Check for files that would conflict in case-insensitive filesystems
+      - id: check-builtin-literals # Require literal syntax when initializing empty or zero Python builtin types
+      # - id: check-docstring-first # Check a common error of defining a docstring after code
+      - id: check-merge-conflict # Check for files that contain merge conflict strings
+      - id: check-yaml # Check yaml files
+      - id: end-of-file-fixer # Ensure that a file is either empty, or ends with one newline
+      - id: mixed-line-ending # Replace or checks mixed line ending
+      - id: trailing-whitespace # This hook trims trailing whitespace
+      - id: file-contents-sorter # Sort the lines in specified files
+        files: .*requirements*\.txt$
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    # Ruff version.
+    rev: 'v0.0.284'
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix, --line-length=120]
+  - repo: https://github.com/asottile/seed-isort-config
+    rev: v2.2.0
+    hooks:
+      - id: seed-isort-config
+  - repo: https://github.com/timothycrosley/isort
+    rev: 5.12.0
+    hooks:
+      - id: isort
+        additional_dependencies: ["toml"]
+  - repo: https://github.com/psf/black
+    rev: 23.7.0
+    hooks:
+      - id: black
+        args:
+          - --line-length=120
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.5.0
+    hooks:
+      - id: mypy
+        files: components/data-api/src
+        args: [--strict, --disable-error-code, misc, --disable-error-code, import]
+  - repo: https://github.com/PyCQA/flake8
+    rev: 6.1.0
+    hooks:
+      - id: flake8
+        exclude: '.*/test_.*.py'
+        args:
+          - --max-line-length=120
+          - --max-cognitive-complexity=18
+          - --ignore=E203,E266,E501,W503,B008,PD005,PD013,PD011,B026
+          - --per-file-ignores=__init__.py:F401
+        additional_dependencies:
+          - pep8-naming
+          - flake8-builtins
+          - flake8-comprehensions
+          - flake8-bugbear
+          - flake8-pytest-style
+          - flake8-cognitive-complexity
+          - pandas-vet
+  # - repo: https://github.com/pycqa/pydocstyle
+  #   rev: 6.3.0
+  #   hooks:
+  #     - id: pydocstyle
+  #       exclude: tests/
+  #       args:
+  #         - --convention=google
+  #       additional_dependencies: ["tomli"]
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v3.10.1
+    hooks:
+      - id: pyupgrade
+        args:
+          - --py36-plus
+          - --py37-plus
+          - --py38-plus

@@ -1,14 +1,9 @@
-from abc import ABCMeta, abstractmethod
-from typing import Optional
-
 import torch
-from torch import nn
-
 from perceiver_io.attention import CrossAttention
+from torch import nn
 
 
 class PerceiverDecoder(nn.Module):
-
     def __init__(
         self,
         num_outputs: int,

@@ -1,9 +1,8 @@
 from typing import Optional
 
 import torch
-from torch import nn
-
 from perceiver_io.attention import CrossAttention, SelfAttention
+from torch import nn
 
 
 class PerceiverEncoder(nn.Module):
@@ -74,10 +73,9 @@ class PerceiverEncoder(nn.Module):
             widening_factor=self_attn_widening_factor,
             num_heads=num_self_attn_heads,
             dropout=dropout,
-            attn_dropout=self_attn_dropout
+            attn_dropout=self_attn_dropout,
         )
-        self.self_attention_blocks = nn.Sequential(
-            *[block for _ in range(num_blocks)])
+        self.self_attention_blocks = nn.Sequential(*[block for _ in range(num_blocks)])
 
     def forward(self, x: torch.Tensor, key_padding_mask: Optional[torch.Tensor] = None):
         """
@@ -90,25 +88,27 @@ class PerceiverEncoder(nn.Module):
         """
         batch_size = x.size(0)
         latent_param = self.latent_param.repeat(batch_size, 1, 1)
-        latents = self.cross_attn(
-            q=latent_param, kv=x, key_padding_mask=key_padding_mask)
+        latents = self.cross_attn(q=latent_param, kv=x, key_padding_mask=key_padding_mask)
         return self.self_attention_blocks(latents)
 
     def self_attention_block(
-            self,
-            num_self_attn_per_block: int,
-            embed_dim: int,
-            num_heads: int = 1,
-            widening_factor: int = 4,
-            dropout: float = 0.0,
-            attn_dropout: float = 0.0):
-
-        return nn.Sequential(*[
-            SelfAttention(
-                embed_dim=embed_dim,
-                num_heads=num_heads,
-                widening_factor=widening_factor,
-                dropout=dropout,
-                attn_dropout=attn_dropout
-            ) for _ in range(num_self_attn_per_block)
-        ])
+        self,
+        num_self_attn_per_block: int,
+        embed_dim: int,
+        num_heads: int = 1,
+        widening_factor: int = 4,
+        dropout: float = 0.0,
+        attn_dropout: float = 0.0,
+    ):
+        return nn.Sequential(
+            *[
+                SelfAttention(
+                    embed_dim=embed_dim,
+                    num_heads=num_heads,
+                    widening_factor=widening_factor,
+                    dropout=dropout,
+                    attn_dropout=attn_dropout,
+                )
+                for _ in range(num_self_attn_per_block)
+            ]
+        )

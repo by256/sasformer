@@ -6,18 +6,16 @@ import torch.nn as nn
 
 
 class PositionalEncoding(nn.Module):
-
     def __init__(self, d_model: int, dropout: float = 0.0, max_len: int = 5000, scale: float = 1.0):
-        super(PositionalEncoding, self).__init__()
+        super().__init__()
         self.dropout = nn.Dropout(p=dropout)
 
         position = torch.arange(max_len).unsqueeze(1)
-        div_term = torch.exp(torch.arange(0, d_model, 2)
-                             * (-math.log(10000.0) / d_model))
+        div_term = torch.exp(torch.arange(0, d_model, 2) * (-math.log(10000.0) / d_model))
         pe = torch.zeros(1, max_len, d_model)
         pe[0, :, 0::2] = torch.sin(position * div_term) * scale
         pe[0, :, 1::2] = torch.cos(position * div_term) * scale
-        self.register_buffer('pe', pe)
+        self.register_buffer("pe", pe)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -25,16 +23,12 @@ class PositionalEncoding(nn.Module):
             x: Tensor, shape [seq_len, batch_size, embedding_dim]
         """
         batch_size = x.size(0)
-        x = torch.cat(
-            [x, self.pe[:, :x.size(1), :].repeat(batch_size, 1, 1)], dim=-1)
+        x = torch.cat([x, self.pe[:, : x.size(1), :].repeat(batch_size, 1, 1)], dim=-1)
         return self.dropout(x)
 
 
 def fourier_encoding(
-    dims: Sequence[int],
-    num_bands: int,
-    resolutions: Sequence[int],
-    concatenate_positions: bool = True
+    dims: Sequence[int], num_bands: int, resolutions: Sequence[int], concatenate_positions: bool = True
 ) -> torch.Tensor:
     """Generate Fourier positional encodings.
 
@@ -58,10 +52,7 @@ def fourier_encoding(
     grid = torch.stack(grid, dim=-1)
 
     # frequency bands for each resolution of shape (len(resolutions), num_bands)
-    freq_bands = torch.stack([
-        torch.linspace(1, res / 2, steps=num_bands)
-        for res in resolutions
-    ], dim=0)
+    freq_bands = torch.stack([torch.linspace(1, res / 2, steps=num_bands) for res in resolutions], dim=0)
 
     # frequency features of shape (dims[1], ..., dims[d], D, num_bands)
     features = grid[..., None] * freq_bands[None, ...]
