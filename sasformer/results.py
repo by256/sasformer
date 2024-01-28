@@ -12,7 +12,7 @@ from sklearn.metrics import (
     ConfusionMatrixDisplay,
     accuracy_score,
     confusion_matrix,
-    mean_absolute_error,
+    mean_absolute_percentage_error,
     precision_score,
     r2_score,
     recall_score,
@@ -91,7 +91,7 @@ if __name__ == "__main__":
     # trainer.validate(model, datamodule=datamodule,
     #                  ckpt_path=namespace.ckpt_path)
     test_results = trainer.test(model, datamodule=datamodule, ckpt_path=namespace.ckpt_path)[0]
-    global_results = {"acc": [test_results["test/accuracy"]], "mae": [test_results["test/mae"]]}
+    global_results = {"acc": [test_results["test/accuracy"]], "mape": [test_results["test/mape"]]}
 
     test_dataloader = datamodule.test_dataloader()
 
@@ -116,7 +116,7 @@ if __name__ == "__main__":
     pd.DataFrame(global_results).to_csv(global_results_path, index=False)
 
     # per model class metrics
-    test_df = datamodule.test_dataset.df
+    test_df = datamodule.test_dataset.sas_df
 
     # clf
     inter_class_acc = {"model": [], "acc": [], "top3_acc": [], "precision": [], "recall": []}
@@ -148,7 +148,7 @@ if __name__ == "__main__":
     print("\n")
 
     # reg
-    inter_class_mae = {"model": [], "param": [], "mae": [], "r2": [], "scale": []}
+    inter_class_mape = {"model": [], "param": [], "mape": [], "r2": [], "scale": []}
 
     reg_target_columns = [x for x in test_df.columns if x.startswith("reg")]
     model_param = [x.split("-")[1:] for x in reg_target_columns]
@@ -158,8 +158,8 @@ if __name__ == "__main__":
         true = y_true_reg[:, idx][valid_idx]
         pred = y_pred_reg[:, idx][valid_idx]
 
-        mae = mean_absolute_error(true, pred)
-        mae = np.round(mae, 3)
+        mape = mean_absolute_percentage_error(true, pred)
+        mape = np.round(mape, 3)
         r2 = r2_score(true, pred)
         r2 = np.round(r2, 3)
 
@@ -167,24 +167,24 @@ if __name__ == "__main__":
             scale = scales[model_name][param_name]
         else:
             scale = "linear"
-        inter_class_mae["model"].append(model_name)
-        inter_class_mae["param"].append(param_name)
-        inter_class_mae["mae"].append(mae)
-        inter_class_mae["r2"].append(r2)
-        inter_class_mae["scale"].append(scale)
+        inter_class_mape["model"].append(model_name)
+        inter_class_mape["param"].append(param_name)
+        inter_class_mape["mape"].append(mape)
+        inter_class_mape["r2"].append(r2)
+        inter_class_mape["scale"].append(scale)
         print(
             f"{str(idx).ljust(3)}: {model_name.ljust(27)}  "
-            f"{param_name.ljust(18)}   MAE: {mae:.3f}   "
+            f"{param_name.ljust(18)}   MAPE: {mape:.3f}   "
             f"Scale: {scale.ljust(10)}"
         )
 
-    inter_class_mae_path = os.path.join(results_dir, "interclass_reg.csv")
-    pd.DataFrame(inter_class_mae).to_csv(inter_class_mae_path, index=False)
+    inter_class_mape_path = os.path.join(results_dir, "interclass_reg.csv")
+    pd.DataFrame(inter_class_mape).to_csv(inter_class_mape_path, index=False)
     print("\n")
 
     # classification results
     C = confusion_matrix(y_true_clf, np.argmax(y_pred_clf, axis=1))
-    clf_model_names = sorted(np.unique(datamodule.test_dataset.df["model"]))
+    clf_model_names = sorted(np.unique(datamodule.test_dataset.sas_df["model"]))
     disp = ConfusionMatrixDisplay(C, display_labels=clf_model_names)
     fig, ax = plt.subplots(figsize=(24, 24))
     disp.plot(ax=ax, cmap="Blues")

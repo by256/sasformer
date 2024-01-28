@@ -112,7 +112,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--project_name",
-        default="sas-perceiver",
+        default="sasformer",
         type=str,
         help="Project name for logging.",
         metavar="project_name",
@@ -178,7 +178,7 @@ if __name__ == "__main__":
     parser.add_argument("--model_dec_attn_dropout", default=0.0, type=float, metavar="model_dec_attn_dropout")
     # param (reg) decoder args
     parser.add_argument("--param_dec_widening_factor", default=1, type=int, metavar="param_dec_widening_factor")
-    parser.add_argument("--param_dec_num_heads", default=3, type=int, metavar="param_decoder_num_heads")
+    parser.add_argument("--param_dec_num_heads", default=3, type=int, metavar="param_dec_num_heads")
     parser.add_argument("--param_dec_dropout", default=0.0, type=float, metavar="param_dec_dropout")
     parser.add_argument("--param_dec_attn_dropout", default=0.0, type=float, metavar="param_dec_attn_dropout")
     # datamodule args
@@ -298,7 +298,12 @@ if __name__ == "__main__":
 
     model = SASPerceiverIOModel(datamodule.num_clf, datamodule.num_reg, **params)
 
-    ckpt_callback = ModelCheckpoint(monitor="val/total_loss", save_top_k=1, save_last=True)
+    ckpt_callback = ModelCheckpoint(
+        monitor="val/total_loss", 
+        save_top_k=1, 
+        every_n_epochs=1,
+        save_last=True,
+    )
     profiler = SimpleProfiler(filename="profile") if bool(namespace.profile) else None
 
     strategy = namespace.strategy

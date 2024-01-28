@@ -14,6 +14,27 @@ Details on how to download the SAS-55M-20k dataset will be found here following 
 
 The results in the manuscript were obtained using a previous [commit](https://github.com/by256/sasformer/tree/792d5b0383804e9786446c904c4240500fa822f7). We recommend that you use that version if you would like to reproduce the results in the manuscript exactly. -->
 
+## Installation
+
+Clone the repository and navigate to the `sasformer` parent directory.
+
+```bash
+git clone git@github.com:by256/sasformer.git
+cd <path>/<to>/sasformer
+```
+
+Create and activate the virtual environment and install the package.
+
+```bash
+conda env create -f environment.yaml
+conda activate sasformer
+python -m pip install -e .
+```
+
+## Training
+
+## Inference
+
 ## Citing
 
 If you use the methods outlined in this repository, please cite the following work:
@@ -28,13 +49,11 @@ If you use the methods outlined in this repository, please cite the following wo
 
 This project was financially supported by the [Science and Technology Facilities Council (STFC)](https://stfc.ukri.org/) and the [Royal Academy of Engineering](https://www.raeng.org.uk/) (RCSRF1819\7\10).
 
-
 ## Acknowledgement
 
 This research used resources of the [Argonne Leadership Computing Facility](https://www.alcf.anl.gov/), which is a DOE Office of Science User Facility supported under Contract DE-AC02-06CH11357.
 
 This work benefited from the use of the [SasView](https://www.sasview.org/) application, originally developed under NSF award DMR-0520547. SasView contains code developed with funding from the European Union’s Horizon 2020 research and innovation programme under the SINE2020 project, grant agreement No 654000.
-
 
 ## License
 

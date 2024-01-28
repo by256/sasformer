@@ -5,7 +5,7 @@ from perceiver_io.encoder import PerceiverEncoder
 from perceiver_io.decoders import PerceiverDecoder
 from perceiver_io.perceiver import SASPerceiverIO
 from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
-from torchmetrics.functional import accuracy
+from torchmetrics.functional import accuracy, mean_absolute_percentage_error
 
 from data import IqTransformer, TargetTransformer
 
@@ -18,6 +18,11 @@ def multitask_l1(pred: torch.Tensor, target: torch.Tensor) -> float:
 def multitask_mse(pred: torch.Tensor, target: torch.Tensor) -> float:
     valid_idx = torch.bitwise_not(torch.isnan(target))
     return F.mse_loss(pred[valid_idx], target[valid_idx])
+
+
+def multitask_mape(pred: torch.Tensor, target: torch.Tensor) -> float:
+    valid_idx = torch.bitwise_not(torch.isnan(target))
+    return mean_absolute_percentage_error(pred[valid_idx], target[valid_idx])
 
 
 class SASPerceiverIOModel(pl.LightningModule):
@@ -65,7 +70,6 @@ class SASPerceiverIOModel(pl.LightningModule):
         self.target_transformer = target_transformer
         self._target_transformer_buffers_registered = False
         # metrics
-        self.num_classes = num_classes
         self.save_hyperparameters(ignore=["model"])
         # encoder
         self.encoder = PerceiverEncoder(
@@ -138,13 +142,14 @@ class SASPerceiverIOModel(pl.LightningModule):
                 num_classes=self.num_classes,
                 task="multiclass",
             )
-            mae = multitask_l1(self.unscale_y(y_reg_pred), self.unscale_y(y_reg_true))
+            mape = multitask_mape(y_reg_pred, y_reg_true)
+            # mae = multitask_l1(self.unscale_y(y_reg_pred), self.unscale_y(y_reg_true))
             if mode == "train":
                 current_lr = self.trainer.optimizers[0].state_dict()["param_groups"][0]["lr"]
             else:
                 current_lr = None
         if not mode == "predict":
-            self.log_losses_and_metrics(clf_loss, reg_loss, acc, mae, current_lr, mode=mode)
+            self.log_losses_and_metrics(clf_loss, reg_loss, acc, mape, current_lr, mode=mode)
 
         if mode in ["train", "val"]:
             loss = self.clf_weight * clf_loss + self.reg_weight * reg_loss
@@ -162,7 +167,7 @@ class SASPerceiverIOModel(pl.LightningModule):
         )
         return {"optimizer": optimizer, "lr_scheduler": {"scheduler": lr_scheduler}}
 
-    def log_losses_and_metrics(self, clf_loss, reg_loss, acc, mae, lr=None, mode="train"):
+    def log_losses_and_metrics(self, clf_loss, reg_loss, acc, mape, lr=None, mode="train"):
         total_loss = self.reg_weight * reg_loss + self.clf_weight * clf_loss
         self.log(f"{mode}/total_loss", total_loss, on_epoch=True, on_step=False, rank_zero_only=True)
         self.log(
@@ -187,14 +192,8 @@ class SASPerceiverIOModel(pl.LightningModule):
             rank_zero_only=True,
             prog_bar=True,
         )
-        self.log(f"{mode}/mae", mae, on_epoch=True, on_step=False, prog_bar=True, rank_zero_only=True)
-        self.log(
-            f"{mode}/es_metric",
-            (mae / 700) + (1 - acc),
-            on_epoch=True,
-            on_step=False,
-            rank_zero_only=True,
-        )
+        self.log(f"{mode}/mape", mape, on_epoch=True, on_step=False, prog_bar=True, rank_zero_only=True)
+        # self.log(f"{mode}/mae", mae, on_epoch=True, on_step=False, prog_bar=True, rank_zero_only=True)
         if lr is not None and mode == "train":
             self.log("trainer/lr", lr, on_epoch=True, on_step=False, rank_zero_only=True)
 

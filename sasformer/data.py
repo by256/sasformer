@@ -163,11 +163,12 @@ class SASDataset:
     def __getitem__(self, idx):
         # I_q = self.I_q_transformed[idx, :, None]
         I_q = self.x_scaler.transform(self.I_q[idx, :][None, :]).T  # noqa: N806
-        reg_targets = self.reg_targets_transformed[idx, :]
+        reg_targets = torch.tensor(self.reg_targets_transformed[idx, :])
+        # reg_targets = self.pad_with_nans(reg_targets, 256)
         if self.masked:
             mask = self.sample_random_mask_()
             return torch.LongTensor(I_q), self.clf_labels[idx], torch.Tensor(reg_targets), mask
-        return torch.LongTensor(I_q), self.clf_labels[idx], torch.Tensor(reg_targets)
+        return torch.LongTensor(I_q), self.clf_labels[idx], reg_targets
 
     def sample_random_mask_(self):
         seq_len = self.I_q.shape[1] - 1
@@ -176,6 +177,19 @@ class SASDataset:
         mask = torch.zeros(size=(seq_len,))
         mask[mask_start_idx:] = 1
         return torch.Tensor(mask).bool()
+
+    # def pad_with_nans(self, tensor: torch.Tensor, target_length: int):
+    #     if tensor.ndim == 1:
+    #         tensor = tensor.unsqueeze(0)  # Add a batch dimension for consistency
+    #     elif tensor.ndim != 2:
+    #         raise ValueError("Input must be a 1D vector or a 2D batch of vectors.")
+    #     _, n = tensor.shape
+    #     if target_length < n:
+    #         raise ValueError("Target length must be greater than or equal to the length of the vectors.")
+    #     padded_tensor = torch.full((tensor.size(0), target_length), float('nan'), device=tensor.device)
+    #     padded_tensor[:, :n] = tensor
+    #     return padded_tensor.squeeze() if padded_tensor.shape[0] == 1 else padded_tensor
+
 
 
 class SASDataModule(pl.LightningDataModule):
