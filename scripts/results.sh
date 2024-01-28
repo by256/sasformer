@@ -11,4 +11,4 @@ fi
 
 mkdir -p results
 
-python ../sasformer/results.py --ckpt_path ../checkpoints/final.ckpt --data_dir ../data/sas-55m-20k/
+python ../sasformer/results.py --ckpt_path ../checkpoints/final.ckpt --data_dir ../data/sas-55m-20k/ --batch_size 1500 --accelerator gpu
