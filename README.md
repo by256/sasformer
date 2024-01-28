@@ -44,7 +44,7 @@ To see an example of inference on the test set values, see the `inference.ipynb`
 You can open this file by installing Jupyter Notebook, running it in the `sasformer` parent directory and clicking on the `inference.ipynb` file in the jupyter notebook file browser:
 
 ```bash
-python -m pip install jupyter notebook
+python -m pip install notebook
 jupyter notebook
 # click on `inference.py`.
 ```

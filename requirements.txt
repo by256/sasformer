@@ -1,6 +1,7 @@
 einops==0.3.0
 lightning-bolts
 matplotlib
+notebook
 numpy
 pandas
 pyarrow
