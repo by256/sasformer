@@ -1,6 +1,6 @@
-from perceiver_io.encoder import PerceiverEncoder
-from perceiver_io.decoders import (ClassificationDecoder,
+from sasformer.perceiver_io.encoder import PerceiverEncoder
+from sasformer.perceiver_io.decoders import (ClassificationDecoder,
                                    PerceiverDecoder,
                                    ProjectionDecoder,
                                    TaskDecoder)
-from perceiver_io.perceiver import PerceiverIO, SASPerceiverIO
+from sasformer.perceiver_io.perceiver import PerceiverIO, SASPerceiverIO

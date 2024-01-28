@@ -7,8 +7,8 @@ from torchmetrics.functional import accuracy
 from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
 from sklearn.preprocessing import KBinsDiscretizer
 
-from data import IqTransformer, TargetTransformer
-from perceiver_io import PerceiverEncoder, PerceiverDecoder, SASPerceiverIO, TaskDecoder
+from sasformer.data import IqTransformer, TargetTransformer
+from sasformer.perceiver_io import PerceiverEncoder, PerceiverDecoder, SASPerceiverIO, TaskDecoder
 
 
 def multitask_l1(pred: torch.Tensor, target: torch.Tensor):

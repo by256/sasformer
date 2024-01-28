@@ -2,7 +2,7 @@ import argparse
 import os
 from sklearn.model_selection import train_test_split
 
-from data import raw_data_to_df
+from sasformer.data import raw_data_to_df
 
 
 if __name__ == '__main__':

@@ -15,8 +15,8 @@ from typing import Union
 import wandb
 import yaml
 
-from model import SASPerceiverIOModel
-from data import SASDataModule
+from sasformer.model import SASPerceiverIOModel
+from sasformer.data import SASDataModule
 
 
 def clear_cache():

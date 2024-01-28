@@ -9,8 +9,8 @@ from sklearn.metrics import accuracy_score, confusion_matrix, ConfusionMatrixDis
 from sklearn.metrics import mean_absolute_error, r2_score
 import torch
 
-from model import SASPerceiverIOModel
-from data import SASDataModule
+from sasformer.model import SASPerceiverIOModel
+from sasformer.data import SASDataModule
 
 
 def top_k_acc(true, pred, k=3):

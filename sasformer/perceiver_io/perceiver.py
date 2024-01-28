@@ -4,9 +4,9 @@ from typing import Optional
 import torch
 from torch import nn
 
-from perceiver_io.decoders import BasePerceiverDecoder, TaskDecoder
-from perceiver_io.encoder import PerceiverEncoder
-from perceiver_io.positional_encoding import PositionalEncoding
+from sasformer.perceiver_io.decoders import BasePerceiverDecoder, TaskDecoder
+from sasformer.perceiver_io.encoder import PerceiverEncoder
+from sasformer.perceiver_io.positional_encoding import PositionalEncoding
 
 
 def sinusoids(length, channels, max_timescale=512):
