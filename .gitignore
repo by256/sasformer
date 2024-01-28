@@ -132,4 +132,4 @@ dmypy.json
 checkpoints/
 logs/
 lightning_logs/
-
+data/sas-55m-20k/
