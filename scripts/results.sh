@@ -10,6 +10,13 @@ if [ ! -f "$data_dir/scales.json" ]; then
     cp ../data/scales.json "$data_dir"
 fi
 
-mkdir -p results
+mkdir -p ../results
+mkdir -p ../checkpoints
+
+echo "Downloading Model Checkpoint..."
+if [ ! -f "../checkpoints/final.ckpt" ]; then
+    # If final.ckpt does not exist, download it using wget
+    wget -O ../checkpoints/final.ckpt "https://huggingface.co/by256/sasformer/resolve/main/final.ckpt?download=true"
+fi
 
 python ../sasformer/results.py --ckpt_path ../checkpoints/final.ckpt --data_dir ../data/sas-55m-20k/ --batch_size 1500 --accelerator gpu
