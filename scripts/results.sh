@@ -13,9 +13,9 @@ fi
 mkdir -p ../results
 mkdir -p ../checkpoints
 
-echo "Downloading Model Checkpoint..."
 if [ ! -f "../checkpoints/final.ckpt" ]; then
     # If final.ckpt does not exist, download it using wget
+    echo "Downloading Model Checkpoint..."
     wget -O ../checkpoints/final.ckpt "https://huggingface.co/by256/sasformer/resolve/main/final.ckpt?download=true"
 fi
 
