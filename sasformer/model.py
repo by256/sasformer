@@ -129,7 +129,7 @@ class SASPerceiverIOModel(pl.LightningModule):
         # calc and log metrics and losses
         with torch.no_grad():
             acc = accuracy(torch.argmax(y_clf_pred, dim=1),
-                           y_clf_true, num_classes=self.num_classes)
+                           y_clf_true, num_classes=self.num_classes, task="multiclass")
             mae = multitask_l1(self.unscale_y(y_reg_pred),
                                self.unscale_y(y_reg_true))
             if mode == 'train':
