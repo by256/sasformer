@@ -2,6 +2,7 @@
 
 cd "$(dirname "$0")"
 
+# CHANGE THIS TO THE PATH WHERE YOU SAVED THE SAS-55M-20K DATASET
 data_dir="../data/sas-55m-20k"
 
 if [ ! -f "$data_dir/scales.json" ]; then
