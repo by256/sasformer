@@ -1,53 +1,59 @@
 import copy
 import json
 import math
-import os
-from typing import Optional
-
 import numpy as np
+import os
 import pandas as pd
 import pytorch_lightning as pl
-import torch
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.model_selection import train_test_split
+from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import FunctionTransformer, KBinsDiscretizer, StandardScaler
+import torch
 from torch.utils.data import DataLoader
+from typing import Tuple, Optional
 
 
 def load_param_names(fp):
-    assert fp.endswith("_par_names.json")
-    with open(fp) as f:
+    assert fp.endswith('_par_names.json')
+    with open(fp, 'r') as f:
         param_names = json.load(f)
     return param_names
 
 
 def raw_data_to_df(data_dir: str, step: int = 1):
     fns = sorted(os.listdir(data_dir))
-    model_names = [x.split("_data.npy")[0] for x in fns if x.endswith("data.npy")]
+    model_names = [x.split('_data.npy')[0]
+                   for x in fns if x.endswith('data.npy')]
 
     model_dfs = []
 
     for model_idx, model_name in enumerate(model_names):
-        model_data = np.load(os.path.join(data_dir, f"{model_name}_data.npy"))
-        param_names = load_param_names(os.path.join(data_dir, f"{model_name}_par_names.json"))
-        params = np.load(os.path.join(data_dir, f"{model_name}_pars.npy"))
-        q_values = np.load(os.path.join(data_dir, f"{model_name}_q_values.npy"))[::step]
+        model_data = np.load(os.path.join(data_dir, f'{model_name}_data.npy'))
+        param_names = load_param_names(os.path.join(
+            data_dir, f'{model_name}_par_names.json'))
+        params = np.load(os.path.join(data_dir, f'{model_name}_pars.npy'))
+        q_values = np.load(os.path.join(
+            data_dir, f'{model_name}_q_values.npy'))[::step]
 
-        x_columns = [f"I(q={q})" for q in q_values]
+        x_columns = [f'I(q={q})' for q in q_values]
         x_df = pd.DataFrame(model_data, columns=x_columns)
         # clf targets
-        x_df["model"] = [model_name] * x_df.shape[0]
-        x_df["model_label"] = [model_idx] * x_df.shape[0]
+        x_df['model'] = [model_name]*x_df.shape[0]
+        x_df['model_label'] = [model_idx]*x_df.shape[0]
         # reg targets
         if len(param_names) == 0:
             y_reg_df = pd.DataFrame()
         else:
-            y_columns = [f"reg-model={model_name}-param={x}" for x in param_names]
+            y_columns = [
+                f'reg-model={model_name}-param={x}' for x in param_names]
             y_reg_df = pd.DataFrame(params, columns=y_columns)
         model_df = pd.concat([x_df, y_reg_df], axis=1)
         # filters
-        model_df = model_df[model_df.columns.drop(list(model_df.filter(regex="polydispersity")))]
-        model_df = model_df[model_df.columns.drop(list(model_df.filter(regex="sld")))]
+        model_df = model_df[model_df.columns.drop(
+            list(model_df.filter(regex='polydispersity')))]
+        model_df = model_df[model_df.columns.drop(
+            list(model_df.filter(regex='sld')))]
 
         model_dfs.append(model_df)
 
@@ -66,14 +72,19 @@ def scalar_neutralization(x):
 
 def zero_index_normalization(x):
     """I(q)/I[0]"""
-    return x / x[:, 0][:, None]
+    return (x / x[:, 0][:, None])
 
 
 class IqTransformer(BaseEstimator, TransformerMixin):
     def __init__(self, n_bins=256):
         self.n_bins = n_bins
-        self.input_transform = FunctionTransformer(self.input_transform_)
-        self.discretizer = KBinsDiscretizer(n_bins, encode="ordinal", strategy="quantile", subsample=None)
+        self.input_transform = FunctionTransformer(
+            self.input_transform_)
+        self.discretizer = KBinsDiscretizer(
+            n_bins,
+            encode='ordinal',
+            strategy='quantile',
+            subsample=None)
 
     def fit(self, x):
         x = self.input_transform.transform(x)
@@ -84,7 +95,8 @@ class IqTransformer(BaseEstimator, TransformerMixin):
     def transform(self, x):
         x = self.input_transform.transform(x)
         # x = self.discretizer.transform(x)
-        x = np.reshape(self.discretizer.transform(np.reshape(x, (-1, 1))), (-1, x.shape[-1]))
+        x = np.reshape(self.discretizer.transform(
+            np.reshape(x, (-1, 1))), (-1, x.shape[-1]))
         return x
 
     def input_transform_(self, x):
@@ -101,7 +113,8 @@ class TargetTransformer(BaseEstimator, TransformerMixin):
     def fit(self, x):
         x = copy.deepcopy(x)
         n, f = x.shape
-        log_indices = np.array([i for i in range(f) if not self.check_col_is_uniform_(x[:, i])], dtype=int)
+        log_indices = np.array(
+            [i for i in range(f) if not self.check_col_is_uniform_(x[:, i])], dtype=int)
         self.log_indices = log_indices
         x[:, log_indices] = np.log(x[:, log_indices])
         self.scaler.fit(x)
@@ -129,53 +142,36 @@ class TargetTransformer(BaseEstimator, TransformerMixin):
 
         y_norm = np.linalg.norm(y_i_quantiles)
         u_norm = np.linalg.norm(u_i_quantiles)
-        dist = np.dot(y_i_quantiles, u_i_quantiles) / (y_norm * u_norm)
+        dist = np.dot(y_i_quantiles, u_i_quantiles) / (y_norm*u_norm)
         return math.isclose(dist, 1.0, abs_tol=0.01)
 
 
 class SASDataset:
-    def __init__(
-        self,
-        sas_df: pd.DataFrame,
-        x_scaler: IqTransformer,
-        y_scaler: TargetTransformer,
-        masked: bool = False,
-        mask_proportion: float = 0.23,
-    ):
-        self.sas_df = sas_df.reset_index(drop=True)
+    def __init__(self, df: pd.DataFrame,
+                 x_scaler: IqTransformer,
+                 y_scaler: TargetTransformer):
+        self.df = df.reset_index(drop=True)
         self.x_scaler = x_scaler
         self.y_scaler = y_scaler
-        self.masked = masked
-        self.mask_proportion = mask_proportion
 
-        data_columns = [x for x in sas_df.columns if x.startswith("I(q")]
-        reg_target_columns = [x for x in sas_df.columns if x.startswith("reg")]
+        data_columns = [x for x in df.columns if x.startswith('I(q')]
+        reg_target_columns = [x for x in df.columns if x.startswith('reg')]
 
-        self.I_q = sas_df[data_columns].values
-        self.I_q_transformed = x_scaler.transform(sas_df[data_columns].values)
-        self.reg_targets = sas_df[reg_target_columns].values
-        self.reg_targets_transformed = self.y_scaler.transform(self.reg_targets)
-        self.clf_labels = sas_df["model_label"].values
+        self.I_q = df[data_columns].values
+        self.I_q_transformed = x_scaler.transform(df[data_columns].values)
+        self.reg_targets = df[reg_target_columns].values
+        self.reg_targets_transformed = self.y_scaler.transform(
+            self.reg_targets)
+        self.clf_labels = df['model_label'].values
 
     def __len__(self):
-        return len(self.sas_df)
+        return len(self.df)
 
     def __getitem__(self, idx):
         # I_q = self.I_q_transformed[idx, :, None]
-        I_q = self.x_scaler.transform(self.I_q[idx, :][None, :]).T  # noqa: N806
+        I_q = self.x_scaler.transform(self.I_q[idx, :][None, :]).T
         reg_targets = self.reg_targets_transformed[idx, :]
-        if self.masked:
-            mask = self.sample_random_mask_()
-            return torch.LongTensor(I_q), self.clf_labels[idx], torch.Tensor(reg_targets), mask
         return torch.LongTensor(I_q), self.clf_labels[idx], torch.Tensor(reg_targets)
-
-    def sample_random_mask_(self):
-        seq_len = self.I_q.shape[1] - 1
-        min_idx = int(seq_len - seq_len * self.mask_proportion)
-        mask_start_idx = np.random.randint(min_idx, seq_len - 1)
-        mask = torch.zeros(size=(seq_len,))
-        mask[mask_start_idx:] = 1
-        return torch.Tensor(mask).bool()
 
 
 class SASDataModule(pl.LightningDataModule):
@@ -191,8 +187,6 @@ class SASDataModule(pl.LightningDataModule):
         self.batch_size = batch_size
         self.val_size = val_size
         self.n_bins = n_bins
-        self.masked = masked
-        self.mask_proportion = mask_proportion
         self.subsample = subsample
         self.seed = seed
         self.num_clf = None
@@ -208,35 +202,37 @@ class SASDataModule(pl.LightningDataModule):
         test = pd.read_parquet(os.path.join(
             self.data_dir, 'test.parquet'))
 
-        self.num_clf = len(np.unique(train["model"]))
-        self.num_reg = len([x for x in train.columns if x.startswith("reg")])
+        self.num_clf = len(np.unique(train['model']))
+        self.num_reg = len(
+            [x for x in train.columns if x.startswith('reg')])
 
         if self.val_size > 0.0:
-            train, val = train_test_split(
-                train,
-                test_size=self.val_size,
-                stratify=train["model_label"],
-                random_state=self.seed,
-            )
+            train, val = train_test_split(train,
+                                          test_size=self.val_size,
+                                          stratify=train['model_label'],
+                                          random_state=self.seed)
 
         # calculate I(q) and target transformers
-        Iq_cols = [x for x in train.columns if x.startswith("I(q")]  # noqa: N806
+        Iq_cols = [x for x in train.columns if x.startswith('I(q')]
         input_transformer = IqTransformer(self.n_bins)
         input_transformer.fit(train[Iq_cols].values)
         self.input_transformer = input_transformer
 
-        reg_target_cols = [x for x in train.columns if x.startswith("reg")]
+        reg_target_cols = [x for x in train.columns if x.startswith('reg')]
         target_transformer = TargetTransformer()
         target_transformer.fit(train[reg_target_cols].values)
         self.target_transformer = target_transformer
 
         # PyTorch dataset classes
-        self.train_dataset = SASDataset(train, input_transformer, target_transformer, self.masked, self.mask_proportion)
+        self.train_dataset = SASDataset(
+            train, input_transformer, target_transformer)
 
         if self.val_size > 0.0:
-            self.val_dataset = SASDataset(val, input_transformer, target_transformer, self.masked, self.mask_proportion)
+            self.val_dataset = SASDataset(
+                val, input_transformer, target_transformer)
 
-        self.test_dataset = SASDataset(test, input_transformer, target_transformer, self.masked, self.mask_proportion)
+        self.test_dataset = SASDataset(
+            test, input_transformer, target_transformer)
 
     def train_dataloader(self):
         return DataLoader(self.train_dataset, batch_size=self.batch_size)
