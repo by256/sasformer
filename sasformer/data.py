@@ -179,21 +179,15 @@ class SASDataset:
 
 
 class SASDataModule(pl.LightningDataModule):
-    def __init__(
-        self,
-        data_dir: str,
-        sub_dir: str,
-        batch_size: int,
-        val_size: float = 0.0,
-        n_bins: int = 256,
-        masked: bool = False,
-        mask_proportion: float = 0.23,
-        subsample: int = None,
-        seed: int = None,
-    ):
+    def __init__(self,
+                 data_dir: str,
+                 batch_size: int,
+                 val_size: float = 0.0,
+                 n_bins: int = 256,
+                 subsample: int = None,
+                 seed: int = None):
         super().__init__()
         self.data_dir = data_dir
-        self.sub_dir = sub_dir
         self.batch_size = batch_size
         self.val_size = val_size
         self.n_bins = n_bins
@@ -207,10 +201,12 @@ class SASDataModule(pl.LightningDataModule):
         self.target_transformer = None
 
     def setup(self, stage: Optional[str] = None):
-        train = pd.read_parquet(os.path.join(self.data_dir, self.sub_dir, "train.parquet"))
+        train = pd.read_parquet(os.path.join(
+            self.data_dir, 'train.parquet'))
         if self.subsample is not None:
             train = train.sample(n=self.subsample, random_state=self.seed)
-        test = pd.read_parquet(os.path.join(self.data_dir, self.sub_dir, "test.parquet"))
+        test = pd.read_parquet(os.path.join(
+            self.data_dir, 'test.parquet'))
 
         self.num_clf = len(np.unique(train["model"]))
         self.num_reg = len([x for x in train.columns if x.startswith("reg")])

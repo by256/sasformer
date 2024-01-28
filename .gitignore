@@ -129,12 +129,8 @@ dmypy.json
 .pyre/
 
 .vscode/
+.isort.cfg
 checkpoints/
 logs/
 lightning_logs/
-src/baselines/
-src/results/
-*.ckpt
-*.ipynb
-*.zip
-results/
+data/sas-55m-20k/
