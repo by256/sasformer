@@ -46,7 +46,12 @@ if __name__ == '__main__':
     with open(os.path.join(data_dir, 'scales.json'), 'r') as f:
         scales = json.load(f)
 
-    device = 'cuda:0' if namespace.accelerator == 'gpu' else 'cpu'
+    if torch.cuda.is_available():
+        device = 'cuda:0'
+    elif not torch.cuda.is_available() and torch.backends.mps.is_available():
+        device = "mps"
+    else:
+        device = "cpu"
     model = SASPerceiverIOModel.load_from_checkpoint(
         checkpoint_path=namespace.ckpt_path).to(device)
     print(model.hparams, '\n')

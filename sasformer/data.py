@@ -197,10 +197,11 @@ class SASDataModule(pl.LightningDataModule):
     def setup(self, stage: Optional[str] = None):
         train = pd.read_parquet(os.path.join(
             self.data_dir, 'train.parquet'))
-        if self.subsample is not None:
-            train = train.sample(n=self.subsample, random_state=self.seed)
         test = pd.read_parquet(os.path.join(
             self.data_dir, 'test.parquet'))
+        if self.subsample is not None:
+            train = train.sample(n=self.subsample, random_state=self.seed)
+            test = test.sample(n=self.subsample, random_state=self.seed)
 
         self.num_clf = len(np.unique(train['model']))
         self.num_reg = len(
