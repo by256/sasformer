@@ -129,6 +129,7 @@ dmypy.json
 .pyre/
 
 .vscode/
+.isort.cfg
 checkpoints/
 logs/
 lightning_logs/
