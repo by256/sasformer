@@ -101,10 +101,8 @@ def load_hparams_from_namespace(namespace):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data_dir', default='../data/', type=str,
+    parser.add_argument('--data_dir', default='../data/sas-55m-20k/', type=str,
                         help='Directory containing data files.', metavar='data_dir')
-    parser.add_argument('--sub_dir', default='sas-55m-20k', type=str,
-                        help='Directory containing parquet files within data_dir.', metavar='sub_dir')
     parser.add_argument('--project_name', default='sas-perceiver', type=str,
                         help='Project name for logging.', metavar='project_name')
     parser.add_argument('--val_size', default=0.25, type=float,
@@ -206,7 +204,6 @@ if __name__ == '__main__':
     data_dir = os.path.join(root_dir, namespace.data_dir)
 
     datamodule = SASDataModule(data_dir=data_dir,
-                               sub_dir=namespace.sub_dir,
                                batch_size=namespace.batch_size,
                                n_bins=namespace.n_bins,
                                val_size=namespace.val_size,
