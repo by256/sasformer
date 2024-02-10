@@ -54,7 +54,7 @@ jupyter notebook
 To generate the test-set results presented in the paper, update `data_dir` in `scripts/results.sh` with the path of the SAS-55M-20k dataset and run the following script:
 
 ```bash
-bash scripts/results.py
+bash scripts/results.sh
 ```
 
 You may have to adjust the `batch_size` and `accelerator` script parameters as mentioned in the [Training](#training) section.
