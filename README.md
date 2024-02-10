@@ -39,14 +39,15 @@ Note: we used a batch size of 1843 for training, but it is likely that you will 
 
 ## Inference
 
-To see an example of inference on the test set values, see the `inference.ipynb` notebook.
+To see an example of inference on I(q) generated using `sasmodels`, see the `sasformer/example.ipynb` notebook.
 
-You can open this file by installing Jupyter Notebook, running it in the `sasformer` parent directory and clicking on the `inference.ipynb` file in the jupyter notebook file browser:
+You can open this file by installing Jupyter Notebook, running it in the `sasformer/sasformer` directory and clicking on the `example.ipynb` file in the jupyter notebook file browser:
 
 ```bash
 python -m pip install notebook
+cd sasformer
 jupyter notebook
-# click on `inference.py`.
+# click on `example.py`.
 ```
 
 ## Results
