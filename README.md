@@ -65,8 +65,16 @@ You may have to adjust the `batch_size` and `accelerator` script parameters as m
 If you use the methods outlined in this repository, please cite the following work:
 
 ```
-@article{Sasformer2023,
-
+@article{Yildirim2024,
+    author={Yildirim, Batuhan
+    and Doutch, James
+    and Cole, Jacqueline},
+    title={Multi-Task Scattering-Model Classification and Parameter Regression of Nanostructures from Small-Angle Scattering Data},
+    journal={Digital Discovery},
+    year={2024},
+    publisher={RSC},
+    doi={10.1039/D3DD00225J},
+    url={https://doi.org/10.1039/D3DD00225J}
 }
 ```
 
