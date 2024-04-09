@@ -8,7 +8,7 @@ This repository contains the source code for the Sasformer model from Multi-task
 
 ## SAS-55M-20k Dataset
 
-Details on how to download the SAS-55M-20k dataset will be found here following publication of the manuscript of this work.
+The SAS-55M-20k dataset can be downloaded from [figshare](https://doi.org/10.6084/m9.figshare.21716618).
 
 ## Installation
 
